@@ -1,0 +1,132 @@
+version: '2.1'
+
+services:
+    mysql:
+       image: "937907730099.dkr.ecr.us-east-1.amazonaws.com/mysql"
+       env_file:
+            - "./testing_env"
+       networks:
+             {{ ips.bridge }}:
+                ipv4_address: "{{ ips.mysql }}"
+       healthcheck:
+            test: ["CMD", "ls", "/run/mysqld/mysqld.pid"]
+            interval: 15s
+            timeout: 10s
+            retries: 5
+       logging:
+            options: 
+                max-size: "100m"
+                max-file: "5"
+
+{% if rc.enabled %}
+    restcomm:
+        image: "937907730099.dkr.ecr.us-east-1.amazonaws.com/opensips:latest"
+        depends_on:
+            mysql:
+                condition: service_healthy
+        env_file:
+            -  "../../RestComm-Docker/restcomm_local"
+        volumes:
+            - "../../RestComm-Docker/Restcomm-JBoss-AS7-7.6.0:/opt/Restcomm-JBoss-AS7"
+        networks: 
+            {{ ips.bridge }}:
+        logging:
+            options: 
+                max-size: "100m"
+                max-file: "5"
+               ipv4_address: "{{ ips.restcomm }}"
+{% endif%}
+
+    opensips:
+        image: "937907730099.dkr.ecr.us-east-1.amazonaws.com/opensips:2.4.5"
+        env_file:
+            - "./testing_env"
+        volumes: 
+            - "../../cpaas.opensips/etc/opensips:/etc/opensips"
+            - "../../cpaas.opensips/etc/radiusclient-ng:/etc/radiusclient-ng"
+        depends_on:
+             mysql:
+                condition: service_healthy
+        command: "/etc/opensips/run.sh"
+        logging:
+            options: 
+                max-size: "100m"
+                max-file: "5"
+        network_mode: host
+
+    radius:
+       image: "tpdock/freeradius"
+       env_file:
+            - "./testing_env"
+       depends_on:
+            - "opensips"
+       volumes: 
+            - "../../cpaas.radius/dictionary:/usr/share/freeradius"
+            - "../../cpaas.radius/etc/freeradius:/etc/freeradius"
+       networks:
+             {{ ips.bridge }}: 
+                ipv4_address: "{{ ips.radius }}"
+       logging:
+            options: 
+                max-size: "100m"
+                max-file: "5"
+
+
+#{% if rc.enabled %}
+#    asterisk:
+#       image: "ashabana/asterisk_core:latest"
+#       ports:
+#            - "5066:5060/udp"
+#       env_file:
+#            - "./testing_env"
+#       volumes: 
+#            - "../../cpaas.asterisk/etc:/etc/asterisk"
+#       networks:
+#             {{ ips.bridge }}:
+#                ipv4_address: "{{ ips.asterisk }}"
+#       command: ["asterisk"]
+#       logging:
+#            options: 
+#                max-size: "100m"
+#                max-file: "5"
+{% endif%}
+
+    ocp:
+       image: "nimmis/apache-php5"
+       volumes: 
+            - "../../cpaas.ocp/source8.2.4:/var/www"
+            - "../../cpaas.ocp/docker:/docker"
+       entrypoint: sh /docker/run.sh
+       depends_on:
+            - "opensips"
+       network_mode: host
+       logging:
+            options: 
+                max-size: "100m"
+                max-file: "5"
+
+
+    rtpproxy:
+       build:
+         context: ../../cpaas.rtpproxy
+         dockerfile: Dockerfile
+       image: "cequens/rtpproxy"
+       volumes: 
+            - "../../cpaas.rtpproxy/source:/src"
+            - "../../cpaas.rtpproxy/docker:/docker"
+       entrypoint: sh /docker/run.sh
+       network_mode: host
+       logging:
+            options: 
+                max-size: "100m"
+                max-file: "5"
+
+
+networks:
+    {{ ips.bridge }}:
+        driver: bridge
+        ipam:
+            driver: default
+            config:
+                - subnet: "{{ ips.subnet }}"
+

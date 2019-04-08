@@ -1,0 +1,12 @@
+MYSQL_ROOT_PASSWORD={{ db.password }}
+MYSQL_DATABASE={{ rad.database }}
+
+#FreeRadius Environments
+RADIUS_DB_HOST={{ ips.mysql }}
+RADIUS_DB_NAME={{ rad.database }}
+RADIUS_DB_USERNAME={{ db.user }} 
+RADIUS_DB_PASSWORD={{ db.password }} 
+RADIUS_CLIENTS={{ rad.key }}@{{ ips.host_bridge }}
+RADIUS_SQL=true
+RADIUS_LISTEN_IP=*
+

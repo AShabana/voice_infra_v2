@@ -1,0 +1,11 @@
+---
+subnet: 192.168.0.0/16
+opensips: 192.168.104.109
+opensips_public: 52.50.205.41
+rtpproxy: 192.168.104.109
+rtpproxy_public: 52.50.205.41
+radius: 192.168.105.241
+restcomm: 192.168.104.200
+restcomm_public: 192.168.104.200
+mysql: sipbd.cv1kr31x3yrv.eu-west-1.rds.amazonaws.com
+

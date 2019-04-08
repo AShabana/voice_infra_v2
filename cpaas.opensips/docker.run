@@ -1,0 +1,9 @@
+source  ./environment
+
+docker run --name mysql -e "MYSQL_ROOT_PASSWORD=$OS_DB_PASS"  -d --network="bridge" --ip=$DB_ENDPOINT mysql:latest
+sleep 30
+docker exec -i  -- mysql mysql -u$OS_DB_USER -p$OS_DB_PASS -e "CREATE DATABASE $OS_DB_NAME ;"
+echo "docker exec -i  -- mysql mysql -u$OS_DB_USER -p$OS_DB_PASS -e CREATE DATABASE $OS_DB_NAME ;" 
+cat  opensips.sql.dump | docker exec -i  -- mysql mysql -u$OS_DB_USER -p$OS_DB_PASS $OS_DB_NAME 
+
+docker run -it --rm --name opensips --link mysql --env-file ./environment --volume $(pwd)/etc/opensips:/etc/opensips --volume $(pwd)/etc/radiusclient-ng:/etc/radiusclient-ng --network="bridge" --ip=$OS_LOCAL_IP cequens/opensips 

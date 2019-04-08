@@ -1,0 +1,40 @@
+#cloud-config
+ssh_authorized_keys:
+  - ssh-dss AAAAAAAb32342...
+  - ssh-dss AAAAAAAb32342...
+hostname: %HOSTNAME%
+coreos:
+  units:
+    - name: etcd2.service
+      command: start
+    - name: fleet.service
+      command: start
+    - name:  systemd-networkd.service
+      command: restart
+    - name: flanneld.service
+      drop-ins:
+        - name: 50-network-config.conf
+          content: |
+            [Service]
+            ExecStartPre=/usr/bin/etcdctl set /coreos.com/network/config '{ "Network": "10.1.0.0/16" }'
+      command: start
+    - name: 00-eth0.network
+      runtime: true
+      content: |
+        [Match]
+        Name=eth0
+
+        [Network]
+        DNS=8.8.8.8
+        Address=%STATIC_IP%/24
+        Gateway=192.168.122.1
+
+  etcd2:
+    advertise-client-urls: http://%STATIC_IP%:2379
+    initial-advertise-peer-urls: http://%STATIC_IP%:2380
+    listen-client-urls: http://0.0.0.0:2379,http://0.0.0.0:4001
+    listen-peer-urls: http://0.0.0.0:2380
+    discovery: %DISCOVERY%
+  fleet:
+    public-ip: %STATIC_IP%
+

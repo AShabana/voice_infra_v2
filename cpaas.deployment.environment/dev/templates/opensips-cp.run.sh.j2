@@ -1,0 +1,20 @@
+chown -R www-data:www-data /var/www/opensips-cp/
+
+apt-get update && apt-get install php5 -y php5-gd php5-mysql php5-xmlrpc php-pear php5-cli mysql-client
+
+echo 'Alias /cp "/var/www/opensips-cp/web"' >> /etc/apache2/apache2.conf
+sed -i  's/short_open_tag.*/short_open_tag = On/' /etc/php5/apache2/php.ini
+
+pear install MDB2
+pear install MDB2#mysql
+pear install log
+
+mysql -h {{ ips.mysql }} -p{{ db.password }} -u{{ db.user }} {{ os.database }} < /var/www/opensips-cp/config/db_schema.mysql
+
+mysql -h {{ ips.mysql }} -p{{ db.password }} -u{{ db.user }} {{ os.database }} -e "INSERT INTO ocp_admin_privileges (username,password,first_name,last_name,ha1,available_tools,permissions) values ('admin','{{ oscp.password }}','admin','admin',md5('admin:{{ oscp.password }}'),'all','all');"
+
+
+sudo service apache2 stop
+sleep 3 
+sudo /usr/sbin/apache2ctl -D FOREGROUND
+

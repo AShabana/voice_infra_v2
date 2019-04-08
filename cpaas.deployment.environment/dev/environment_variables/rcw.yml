@@ -1,0 +1,14 @@
+---
+trunk_event:
+    throughput: "https://v2zv63x1m1.execute-api.us-east-1.amazonaws.com/Prod/sbc/throughput"
+    app_end_call: "https://v2zv63x1m1.execute-api.us-east-1.amazonaws.com/Prod/sbc/call/appEnd"
+    call_end: "https://v2zv63x1m1.execute-api.us-east-1.amazonaws.com/Prod/sbc/call/end"
+    call_start: "https://v2zv63x1m1.execute-api.us-east-1.amazonaws.com/Prod/sbc/call/start"
+    call_fail: "https://v2zv63x1m1.execute-api.us-east-1.amazonaws.com/Prod/sbc/call/fail"
+    call_ringing: "https://v2zv63x1m1.execute-api.us-east-1.amazonaws.com/Prod/sbc/call/ringing"
+
+
+event_queue:
+    main: "uri = amqp://127.0.0.1 heartbeat = 5"
+    backup: "uri = amqp://127.0.0.1 heartbeat = 5"
+

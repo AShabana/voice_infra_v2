@@ -1,0 +1,126 @@
+---
+
+- name: Provisional production radius server
+
+  hosts: radius
+  become: true
+  vars:
+    aws_env:
+        AWS_ACCESS_KEY_ID: AKIAINWPBS3CZESKN7KQ   ### Valut
+        AWS_SECRET_ACCESS_KEY: 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   ### Valut
+  tasks:
+  - name: Importing Infrastructure network variables
+    include_vars:
+        file: environment_variables/network.yml
+        name: ips
+
+  - name: Importing radius variables
+    include_vars:
+        file: environment_variables/radius.yml
+        name: rad
+
+  - name: Insure the Host state for pre-requests packages
+    apt:
+        name: "{{ item }}"
+        state: latest
+        update_cache: yes
+        allow_unauthenticated: yes
+    with_items:
+         - git
+         - docker.io
+         - tree
+         - tmux
+         - python-pip
+    become: true
+
+  
+  - name: Install aws cli
+    pip:
+        name: awscli
+
+  - name: Install  docker-py
+    pip:
+        name: docker-py
+
+  - name: Configure git helpers to codecommit
+    git_config:
+        name: credential.UseHttpPath
+        value: true
+        scope: global
+  - name: Configure git helpers to codecommit
+    git_config:
+        name: credential.helper
+        value: '!aws codecommit credential-helper $@'
+        scope: global
+
+  - name: Insure the docker-compose state
+    get_url:
+        url: https://github.com/docker/compose/releases/download/1.15.0/docker-compose-Linux-x86_64
+        dest: /sbin/docker-compose
+        mode: 0555
+
+  - name: Clone lastest configuration
+    git:
+        repo: https://git-codecommit.us-east-1.amazonaws.com/v1/repos/cpaas.radius
+        dest: /usr/local/src/freeradius
+        update: no
+    register: config_updated
+    environment: "{{aws_env}}"
+
+  - name: Building the compose env variables
+    template:
+        src: templates/env_vars.j2
+        dest: /usr/local/src/freeradius/docker/env_vars
+  
+  
+  - name: Building FreeRadius Dockerfile
+    template:
+        src: templates/freeradius.Dockerfile.j2
+        dest: /usr/local/src/freeradius/docker/Dockerfile
+        mode: 0555
+    register: dockerfile_updated
+
+#    notify:
+#    - revamp_container
+
+
+  - name: Build docker-compose.yml
+    template:
+        src: templates/freeradius.docker-compose.yml.j2
+        dest: /usr/local/src/freeradius/docker/docker-compose.yml
+
+#    notify:
+#    - revamp_container
+#
+
+  - name: run docker-compose up
+    command: docker-compose up  -d
+    args:
+        chdir: /usr/local/src/freeradius/docker
+
+#
+#  handlers:
+#  - name: restart_container
+#    docker_service:
+#        project_src: /usr/local/src/freeradius/docker
+#        state: absent
+#        services:
+#            radius:
+#    docker_service:
+#        project_src: /usr/local/src/freeradius/docker
+#        state: present
+#        services:
+#            radius:
+#
+#  - name: revamp_container
+#    docker_service:
+#        project_src: /usr/local/src/freeradius/docker
+#        state: absent
+#        services:
+#            radius:
+#    docker_service:
+#        project_src: /usr/local/src/freeradius/docker
+#        state: present
+#        services:
+#            radius:
+#

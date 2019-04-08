@@ -1,0 +1,114 @@
+
+#config for cequens
+#LOGS
+
+RESTCOMM_LOGS={{ rc.log.dir }}
+CORE_LOGS_LOCATION=restcomm_core
+RESTCOMM_TRACE_LOG=restcomm_trace
+MEDIASERVER_LOGS_LOCATION=media_server
+
+
+MGMT_USER={{ rc.mgmt_user }}
+MGMT_PASS={{ rc.mgmt_pass }}
+
+
+#SSL certificate
+SECURESSL=SELF
+SSL_MODE=allowall
+TRUSTSTORE_PASSWORD=changeme
+TRUSTSTORE_ALIAS=restcomm
+DISABLE_HTTP='false'
+
+
+#Functional configuration.
+USE_STANDARD_HTTP_PORTS=TRUE
+USE_STANDARD_SIP_PORTS=TRUE
+MEDIASERVER_LOWEST_PORT=65000
+MEDIASERVER_HIGHEST_PORT=65530
+
+RESOURCE_IVR=200
+
+#Log
+#RCBCONF_LOG_LEVEL=DEBUG
+#RCBCONF_LOG_LEVEL_COMPONENT_GOVNIST=DEBUG
+#RCBCONF_LOG_LEVEL_COMPONENT_RESTCOMM=DEBUG
+
+#SMS
+SMS_PREFIX=
+
+#TTS - this is a free acount KEY - please create your personal key (http://www.voicerss.org/)
+
+#HSQL-persist data
+HSQL_PERSIST=/var/restcomm/data
+
+#Backwords compatibility will be removed in next release..
+USE_STANDARD_PORTS=TRUE
+
+#initial admin password
+INIT_PASSWORD=Kokowawa9999
+
+#IP
+RCBCONF_STATIC_ADDRESS={{ ips.restcomm }}
+RESTCOMMHOST=voice.cequens.net
+
+RCADVCONF_HTTP_RESPONSE_TIMEOUT=30000
+HTTP_RESPONSE_TIMEOUT=30000
+RMSCONF_HTTP_RESPONSE_TIMEOUT=30000
+EXTCONF_HTTP_RESPONSE_TIMEOUT=30000
+
+##SMTP
+SMTP_USER={{ rc.smtp.user }}
+SMTP_PASSWORD={{ rc.smtp.pass }}
+SMTP_HOST={{ rc.smtp.host }}
+SMTP_PORT={{ rc.smtp.port }}
+
+RCBCONF_OUTBOUND_PROXY={{ ips.opensips }}
+RCBCONF_OUTBOUND_PROXY_USERNAME={{ sip.clients['restcomm'].name }}
+RCBCONF_OUTBOUND_PROXY_PASSWORD={{ sip.clients['restcomm'].pass }}
+
+RCBCONF_SMS_OUTBOUND_PROXY={{ ips.opensips }}:5060
+
+#Voice TTS integrations
+{% if rc.voicerss_key %}
+RCBCONF_VOICERSS_KEY={{ rc.voicerss_key }}
+#iSpeech
+#RCBCONF_ISPEECH_KEY=0cbd8a2cf5219c62cfaf619984035312
+{% elif rc.acapela %}
+##Acapela
+RCBCONF_ACAPELA_APPLICATION={{ rc.acapela.app }}
+RCBCONF_ACAPELA_LOGIN={{ rc.acapela.login }}
+RCBCONF_ACAPELA_PASSWORD={{ rc.acapela.pass }}
+{% endif %}
+
+## SHABANA
+RCBCONF_SMPP_ACTIVATE=false
+
+RCBCONF_SMPP_ID=1139e7f8
+GENERIC_SMPP_SYSTEM_ID=1139e7f8
+RCBCONF_SMPP_SYSTEM_ID=1139e7f8
+RCBCONF_SMPP_PASSWORD=2bd454c0
+RCBCONF_SMPP_SYSTEM_TYPE=inbound
+RCBCONF_SMPP_PEER_IP=smpp0.nexmo.com
+RCBCONF_SMPP_PEER_PORT=8000
+RCBCONF_SMPP_SOURCE_MAP=
+RCBCONF_SMPP_DEST_MAP=
+
+#eof SHABANArue
+
+#MySQL
+RCBCONF_ENABLE_MYSQL={{ rc.enable_mysql }}
+RCBCONF_MYSQL_USER={{ db.user }}
+RCBCONF_MYSQL_PASSWORD={{ db.password }}
+RCBCONF_MYSQL_HOST={{ ips.mysql }}
+RCBCONF_MYSQL_SCHEMA=restcomm
+
+#Voxbone
+#PROVISION_PROVIDER=VB
+#DID_LOGIN=ahmedshabrawy
+#DID_PASSWORD=kokowawa
+
+PROVISION_PROVIDER=NX
+DID_LOGIN=1139e7f8
+DID_PASSWORD=2bd454c0
+
+

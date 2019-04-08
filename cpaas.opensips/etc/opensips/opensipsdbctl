@@ -1,0 +1,21 @@
+DBENGINE=MYSQL
+DBHOST=192.168.13.100
+DBNAME=opensips
+DBRWUSER=root
+DBRWPW=pssword
+DBROOTUSER="root"
+ETCDIR="/etc/opensips"
+ MD5="md5sum"
+ AWK="awk"
+ GDB="gdb"
+ GREP="grep"
+ SED="sed"
+STANDARD_MODULES="standard acc domain group permissions registrar usrloc
+                   msilo alias_db uri_db speeddial avpops auth_db pdt dialog
+                   dispatcher dialplan drouting nathelper load_balancer"
+ OSIPS_FIFO="/tmp/opensips_fifo"
+ MI_CONNECTOR=FIFO:/tmp/opensips_fifo
+ VERBOSE=1
+ PID_FILE=/var/run/opensips/opensips.pid
+STARTOPTIONS="-P /var/run/opensips/opensips.pid -m 128 -M 4 -u root -g root -f /etc/opensips/opensips.cfg"
+

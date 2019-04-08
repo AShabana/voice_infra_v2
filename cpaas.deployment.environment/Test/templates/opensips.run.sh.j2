@@ -1,0 +1,44 @@
+#!/bin/bash
+
+cd /etc/opensips
+
+
+mysql -u{{ db.user }}  -p{{ db.password }} -h{{ ips.mysql }} -e "CREATE DATABASE IF NOT EXISTS {{ os.database }} ;"
+#cp /etc/opensips/opensipsdbctl /usr/loca/etc/opensips/opensipsctlrc
+##chmod +x /usr/loca/etc/opensips/opensipsctlrc
+##cd /usr/loca/etc/opensips
+##./opensipsctlrc create
+#sh /etc/opensips/opensipsdbctl create {{ os.database }}
+## Dump production database
+cd /etc/opensips
+mysqldump -u{{  production_os.db_user }} -p{{ production_os.os_db_pass }} -h{{ production_ips.mysql }} {{  production_os.database }} address dialplan dr_gateways dr_rules rtpproxy > opensips.sql.dump.2
+## Restore it to the env
+cat  opensips.sql.dump | mysql -u{{ db.user }}  -p{{ db.password }}  {{ os.database }} -h{{ ips.mysql }}
+cat  opensips.sql.dump.2 | mysql -u{{ db.user }}  -p{{ db.password }}  {{ os.database }} -h{{ ips.mysql }}
+
+## Create empty cdr tables
+cat cdr_table_schema.sql | mysql -u{{ db.user }}  -p{{ db.password }}  {{ os.database }} -h{{ ips.mysql }}
+
+cat  freeradius_1.0_16_aug_2017.sql | mysql -u{{ db.user }}  -p{{ db.password }}  {{ rad.database }} -h{{ ips.mysql }}
+
+## TODO fill below loop from vars
+{% for client in sip.clients %}
+mysql  -u{{ db.user }}  -p{{ db.password }} -h{{ ips.mysql }} -e "UPDATE radcheck SET username='{{ sip.clients[client].name }}@{{ ips.opensips }}', value='{{ sip.clients[client].pass }}';" {{ rad.database }}
+{% endfor %}
+
+mysql -u{{ db.user }}  -p{{ db.password }} -h{{ ips.mysql }} -e "Truncate table radacct;"  {{ rad.database }}
+
+mysql -u{{ db.user }}  -p{{ db.password }} -h{{ ips.mysql }} -e "UPDATE dr_gateways SET address='{{ ips.asterisk }}', socket='';" {{ os.database }}
+
+## TODO make ip from var
+{% for client in sip.clients %}
+mysql -u{{ db.user }}  -p{{ db.password }} -h{{ ips.mysql }} -e "UPDATE address SET ip='192.168.0.0', mask=16;" {{ os.database }}
+{% endfor %}
+
+
+service rsyslog start
+
+/usr/local/src/opensips -D  -f /etc/opensips/opensips.cfg
+
+#/usr/loca/sbin/opensipsctl start
+#tail -f /var/log/opensips.log

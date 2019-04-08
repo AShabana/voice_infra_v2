@@ -1,0 +1,3 @@
+---
+syslog_level: DBUG
+syslog_facility: LOG_LOCAL2

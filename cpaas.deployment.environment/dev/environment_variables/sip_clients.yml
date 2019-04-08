@@ -1,0 +1,9 @@
+---
+clients:
+    restcomm:
+        name: not_restcomm
+        pass: 3ala3ard
+    restcomm.test:
+        name: restcomm.test
+        pass: test321
+        ip: 192.168.75.128

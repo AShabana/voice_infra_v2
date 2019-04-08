@@ -1,0 +1,8 @@
+. Re-compile new version of the opensips as this one have some issues with rest_client
+. Opensips hommer + opensips events integration with RC.Wrapper service.
+. upload all container images to our aws ecr
+. Restcomm from [ Voice-Staging-2 i-0563a147006238081 ] -> to put data at mysql and work in cluster-mode
+. ReConfigure CDR radius
+. Take Dialog.profile oubound|inbound in consideration
+. Do the GoLang RC Service as microservice .
+. sipp to the repo to simulate cases [480, 486] for no answer and trunk busy, also take in consideration failed [404, 500]

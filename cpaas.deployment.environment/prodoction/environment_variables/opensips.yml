@@ -1,0 +1,10 @@
+---
+database: opensips23
+db_host: sipbd.cv1kr31x3yrv.eu-west-1.rds.amazonaws.com
+os_db_pass: 3ala6ool
+db_port: 3306
+db_user: root
+log_level: 3
+debug: 1
+json_mi_port: 3325
+sms_service: "https://ht.cequens.com/Send.aspx?UserName=$hdr(X-RestComm-AccountSid)&MessageType=Text&Recipients=$(tU{s.substr,1,0})&SenderName=$fU&MessageText=$(rb{s.escape.param})"

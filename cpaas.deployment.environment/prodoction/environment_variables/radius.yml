@@ -1,0 +1,7 @@
+---
+database: "radius_db"
+db_host: "radiusdb.cluster-cv1kr31x3yrv.eu-west-1.rds.amazonaws.com"
+rad_db_password: "Tiktikra3"
+db_user: "rad_admin"
+key: "topsecret_8897"
+

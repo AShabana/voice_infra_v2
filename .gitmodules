@@ -1,0 +1,24 @@
+[submodule "cpaas.opensips"]
+	path = cpaas.opensips
+	url = https://git-codecommit.us-east-1.amazonaws.com/v1/repos/cpaas.opensips
+	branch = master
+[submodule "cpaas.radius"]
+	path = cpaas.radius
+	url = https://git-codecommit.us-east-1.amazonaws.com/v1/repos/cpaas.radius
+	branch = master
+[submodule "cpaas.asterisk"]
+	path = cpaas.asterisk
+	url = https://git-codecommit.us-east-1.amazonaws.com/v1/repos/cpaas.asterisk
+	branch = master
+[submodule "cpaas.deployment.environment"]
+	path = cpaas.deployment.environment
+	url = https://git-codecommit.us-east-1.amazonaws.com/v1/repos/cpaas.deployment.environment
+	branch = master
+[submodule "cpaas.ocp"]
+	path = cpaas.ocp
+	url = https://git-codecommit.eu-west-1.amazonaws.com/v1/repos/cpaas.ocp
+	branch = master
+[submodule "cpaas.rtpproxy"]
+	path = cpaas.rtpproxy
+	url = https://git-codecommit.us-east-1.amazonaws.com/v1/repos/cpaas.rtpproxy
+	branch = master

@@ -1,0 +1,1 @@
+rtpproxy -l {{ips.host}}/{{ips.host_bridge}} -s udp:{{ips.host}}:7890 -F -f -d {{rtpproxy.syslog_level}}:{{rtpproxy.syslog_facility}}

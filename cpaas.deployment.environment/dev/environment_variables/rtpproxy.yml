@@ -1,0 +1,7 @@
+---
+syslog_level: DBUG
+syslog_facility: LOG_LOCAL2
+ctrl_port: 7890
+notify_port: 9999
+max_mutted_call_duration: 60
+setid: 1

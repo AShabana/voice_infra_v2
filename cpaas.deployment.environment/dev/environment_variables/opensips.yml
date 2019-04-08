@@ -1,0 +1,13 @@
+---
+database: opensips
+json_mi_port: 3325
+log_level: 1 
+debug: 1
+number_of_threads: 10
+perm_allowed_trunks: 1
+perm_allowed_clients: 2
+dr_trunks_gws: 1
+dr_client_gws: 2
+dr_passthrough_gws: 3
+dr_restcommz: 3
+sms_service: "https://ht.cequens.com/Send.aspx?UserName=$hdr(X-RestComm-AccountSid)&MessageType=Text&Recipients=$(tU{s.substr,1,0})&SenderName=$fU&MessageText=$(rb{s.escape.param})"

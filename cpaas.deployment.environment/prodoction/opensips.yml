@@ -1,0 +1,100 @@
+---
+- name: Preparing opensips
+    
+  hosts: opensips
+  vars:
+    base_dir: /usr/local/src/opensips2.3
+    aws_env:
+        AWS_ACCESS_KEY_ID: AKIAINWPBS3CZESKN7KQ   ### Valut
+        AWS_SECRET_ACCESS_KEY: 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   ### Valut
+  become: true
+
+  tasks:
+
+  - name: Importing Infrastructure network variables
+    include_vars:
+        file: environment_variables/network.yml
+        name: ips
+
+  - name: Importing radius variables
+    include_vars:
+        file: environment_variables/radius.yml
+        name: rad
+
+  - name: Importing opensips variables
+    include_vars:
+        file: environment_variables/opensips.yml
+        name: os
+
+  - name: Importing rtpproxy variables
+    include_vars:
+        file: environment_variables/rtpproxy.yml
+        name: rtp
+
+  - name: Insure the Host state for pre-requests packages
+    apt:
+        name: "{{ item }}"
+        state: latest
+        update_cache: yes
+        allow_unauthenticated: yes
+    with_items:
+         - git
+         - docker.io
+         - tree
+         - tmux
+         - python-pip
+    become: true
+
+  
+  - name: Install aws cli
+    pip:
+        name: awscli
+
+  - name: Configure git helpers to codecommit
+    git_config:
+        name: credential.UseHttpPath
+        value: true
+        scope: global
+  - name: Configure git helpers to codecommit
+    git_config:
+        name: credential.helper
+        value: '!aws codecommit credential-helper $@'
+        scope: global
+
+  - name: Insure the docker-compose state
+    get_url:
+        url: https://github.com/docker/compose/releases/download/1.15.0/docker-compose-Linux-x86_64
+        dest: /sbin/docker-compose
+        mode: 0555
+
+  - name: Clone lastest configuration
+    git:
+        repo: https://git-codecommit.us-east-1.amazonaws.com/v1/repos/cpaas.opensips
+        dest: "{{ base_dir }}"
+        update: no
+    register: config_updated
+    environment: "{{aws_env}}"
+    become: true
+
+
+  - name: Building the docker-compose.yml from vars
+    copy:
+        src: files/opensips.docker-compose.yml
+        dest: "{{ base_dir }}/docker-compose.yml"
+
+
+  - name: Building the opensips.cfg from vars
+    template:
+        src: templates/opensips.cfg.j2
+        dest: "{{ base_dir }}/etc/opensips/opensips.cfg"
+
+  - name: Building the radiusclient.conf from vars
+    template:
+        src: templates/radiusclient.conf.j2
+        dest: "{{ base_dir }}/etc/radiusclient-ng/radiusclient.conf"
+
+  - name: Building the radiusclient server config file from vars ( server -> key )
+    template:
+        src: templates/radius.server.j2
+        dest: "{{ base_dir }}/etc/radiusclient-ng/servers"
+

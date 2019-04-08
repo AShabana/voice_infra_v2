@@ -1,0 +1,25 @@
+---
+mgmt_user: admin
+mgmt_pass: test
+
+log:
+    level: DEBUG
+    dir: /var/log/restcomm
+
+
+smtp:
+    user: Cequens
+    pass: q-BxPR7XdN66ZtHVm-deTA
+    host: smtp.mandrillapp.com
+    port: 587
+
+real_ip: 0.0.0.0
+voicerss_key: e324999fd5c44adb9ba2d9427a5df15b
+
+acapela:
+    app: EVAL_5145624
+    login: EVAL_VAAS
+    pass: qrwbilk4
+
+enable_mysql: "true"
+rvd_path: /var/restcomm/rvd/workspace

@@ -1,0 +1,30 @@
+version: '2.1'
+
+services:
+
+    opensips:
+        build:
+            context: ../../cpaas.opensips
+            dockerfile: Dockerfile
+        image: "cequens/opensips"
+        env_file:
+            - "./testing_env"
+        volumes: 
+            - "../../cpaas.opensips/etc/opensips:/etc/opensips"
+            - "../../cpaas.opensips/etc/radiusclient-ng:/etc/radiusclient-ng"
+        depends_on:
+        network_mode: host
+
+    radius:
+       image: "tpdock/freeradius"
+       env_file:
+            - "./testing_env"
+       depends_on:
+            - "createRadiusDB"
+       volumes: 
+            - "../../cpaas.radius/dictionary:/usr/share/freeradius"
+            - "../../cpaas.radius/etc/freeradius:/etc/freeradius"
+       networks:
+             test_network: 
+                ipv4_address: "192.168.105.241"
+

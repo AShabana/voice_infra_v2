@@ -1,0 +1,9 @@
+# Data base section OpenSips
+OS_DB_USER=root
+OS_DB_PASS=not_password
+OS_DB_HOST=192.168.0.100
+OS_DB_PORT=3306
+OS_DB_NAME=opensips
+OS_LOCAL_IP=192.168.0.10
+OS_PUBLIC_IP=
+

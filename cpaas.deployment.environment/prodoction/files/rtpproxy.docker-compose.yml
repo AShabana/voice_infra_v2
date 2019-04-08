@@ -1,0 +1,14 @@
+version: '2.1'
+
+services:
+    rtpproxy:
+       build:
+         context: .
+         dockerfile: Dockerfile
+       image: "cequens/rtpproxy"
+       volumes:
+            - "./source:/src"
+            - "./docker:/docker"
+       entrypoint: sh /docker/run.sh
+       network_mode: host
+

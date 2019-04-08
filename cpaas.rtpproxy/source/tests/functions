@@ -1,0 +1,303 @@
+OS=`uname`
+MYUID=`id -u`
+
+TZ=CET
+export TZ
+
+TEST_TIMESTAMP=${TEST_TIMESTAMP:-`date "+%Y%m%d%H%M%S"`}
+
+BASEDIR="${BASEDIR:-$(dirname -- $0)}"
+BASEDIR="$(readlink -f -- $BASEDIR)"
+
+BUILDDIR="${BUILDDIR:-${BASEDIR}}"
+TOP_BUILDDIR="${TOP_BUILDDIR:-${BASEDIR}/..}"
+
+PYTHON_DIR="${TOP_BUILDDIR}/python"
+SIPPY_DIR="${PYTHON_DIR}/sippy_lite"
+
+RTPPROXY=${TOP_BUILDDIR}/src/rtpproxy_debug
+RTPP_QUERY=${SIPPY_DIR}/sippy/tools/rtpp_query.py
+RTPP_NOTYFY_CLIENT=${TOP_BUILDDIR}/python/rtpp_notify_client.py
+
+setup_tstart() {
+  RTPP_MCLOCK_NAME="`${RTPPROXY} -C 2>/dev/null`"
+  if [ "${RTPP_MCLOCK_NAME}" = "" ]
+  then
+    echo "oops, cannot determine clock name to synchronize logs!" 1>&2
+    exit 1
+  fi
+  RTPP_LOG_TSTART="`python ${SIPPY_DIR}/sippy/tools/getmonotime.py -S ${SIPPY_DIR} \
+   -C ${RTPP_MCLOCK_NAME}`"
+  export RTPP_LOG_TSTART
+  RTPP_LOG_TFORM="rel"
+  export RTPP_LOG_TFORM
+}
+
+if [ "${RTPP_LOG_TSTART}" = "" ]
+then
+  setup_tstart
+fi
+
+RTPP_NOTIFY_SOCK_UNIX_SHRT="/tmp/rtpp_nc.sock"
+RTPP_NOTIFY_SOCK_UNIX="unix:${RTPP_NOTIFY_SOCK_UNIX_SHRT}"
+RTPP_NOTIFY_SOCK_TCP="tcp:127.0.0.1:9642"
+RTPP_NOTIFY_SOCK_WILD="tcp:%%CC_SELF%%:9643"
+RTPP_NOTIFY_SOCK_WILD_BIND="tcp:127.0.0.1:9643"
+
+RTPP_TEST_SOCK_UDP4_PORT=${RTPP_TEST_SOCK_UDP4_PORT:-37223}
+RTPP_TEST_SOCK_UDP6_PORT=${RTPP_TEST_SOCK_UDP6_PORT:-43863}
+RTPP_TEST_SOCK_UNIX=${RTPP_TEST_SOCK_UNIX:-/tmp/rtpproxy.sock}
+RTPP_TEST_SOCK_CUNIX=${RTPP_TEST_SOCK_CUNIX:-/tmp/rtpproxy.csock}
+RTPP_TEST_SOCKETS="stdio: udp:127.0.0.1:${RTPP_TEST_SOCK_UDP4_PORT} \
+  unix:${RTPP_TEST_SOCK_UNIX} \
+  cunix:${RTPP_TEST_SOCK_CUNIX} udp6:::1:${RTPP_TEST_SOCK_UDP6_PORT}"
+MAKEANN=${TOP_BUILDDIR}/makeann/makeann
+EXTRACTAUDIO=${TOP_BUILDDIR}/extractaudio/extractaudio
+DIFF="diff -u"
+TCPDUMP="tcpdump"
+TAR="tar"
+
+TRASH_PORT1=38322
+
+if [ ${MYUID} -eq 0 ]
+then
+  SUDO=""
+else
+  SUDO="sudo -n"
+fi
+
+if [ "${OS}" != "FreeBSD" ]
+then
+  TAR_COMPRESS_FLAG="-j"
+  if ! ulimit -c unlimited 2>/dev/null
+  then
+    ${SUDO} ulimit -c unlimited
+  fi
+else
+  TAR_COMPRESS_FLAG="-y"
+fi
+
+sha256_compute() {
+  if [ "${OS}" != "FreeBSD" ]
+  then
+    for sfile in "${@}"
+    do
+      sha256sum "${sfile}" | awk "{print \"SHA256 (${sfile}) = \"\$1}"
+    done
+  else
+    sha256 "${@}"
+  fi
+}
+
+setup_buffers() {
+  if [ "${OS}" != "FreeBSD" ]
+  then
+    ${SUDO} -s "echo 49600 > /proc/sys/net/ipv4/udp_rmem_min"
+    ${SUDO} sysctl -w net.ipv4.udp_rmem_min=49600
+    ${SUDO} -s "echo 49600 > /proc/sys/net/ipv4/udp_wmem_min"
+    ${SUDO} sysctl -w net.ipv4.udp_wmem_min=49600
+    ${SUDO} -s "echo 33554432 > /proc/sys/net/core/rmem_max"
+    ${SUDO} sysctl -w net.core.rmem_max=33554432
+    ${SUDO} -s "echo 33554432 > /proc/sys/net/core/rmem_default"
+    ${SUDO} sysctl -w net.core.rmem_default=33554432
+  fi
+}
+
+sha256_verify() {
+  act_chksum=`sha256_compute "${1}" | awk '{print $4}'`
+  prop_chksum=`grep -w ${1} < ${2} | awk '{print $4}'`
+  if [ "${prop_chksum}" = "REPORT" ]
+  then
+    echo "SHA256 (${1}) = ${act_chksum}"
+    return
+  fi
+  if [ "${act_chksum}" = "${prop_chksum}" ]
+  then
+    ok "${1} data"
+  else
+    fail "${1} data"
+  fi
+}
+
+if [ "${OS}" != "FreeBSD" ]
+then
+  LOOPBACK_INTERFACE="lo"
+  SED_ARGS="-u"
+else
+  LOOPBACK_INTERFACE="lo0"
+  SED_ARGS="-l"
+fi
+
+SED="sed ${SED_ARGS}"
+
+rtpproxy_start() {
+  tempfoo="`basename $0`.XXXXX"
+  TMP_PIDFILE=`mktemp -t ${tempfoo}` || return 1
+  TMP_SOCKFILE=${RTPP_SOCKFILE:-`mktemp -t ${tempfoo}`} || return 1
+  TMP_LOGFILE=${RTPP_LOGFILE:-`mktemp -t ${tempfoo}`} || return 1
+  RTPP_RUNDIR=`pwd`
+  if [ ! -z "${RTPP_OUTFILE}" ]
+  then
+    ${RTPPROXY} -D -F -s ${TMP_SOCKFILE} -p ${TMP_PIDFILE} -d info ${RTPP_ARGS} \
+     >${RTPP_OUTFILE} 2>${TMP_LOGFILE}
+  else
+    ${RTPPROXY} -D -F -s ${TMP_SOCKFILE} -p ${TMP_PIDFILE} -d info ${RTPP_ARGS} \
+     2>${TMP_LOGFILE}
+  fi
+  RC=${?}
+  if [ ${RC} -ne 0 ]
+  then
+    if [ -s "${TMP_LOGFILE}" ]
+    then
+      cat ${TMP_LOGFILE} >&2
+    fi
+    rm ${TMP_LOGFILE}
+    false
+    return
+  fi  
+  export TMP_PIDFILE
+  export TMP_SOCKFILE
+  _i=0
+  while [ ! -s ${TMP_PIDFILE} ]
+  do
+    sleep 1
+    _i=$((${_i} + 1))
+    if [ ${_i} -eq 3 ]
+    then
+      cat ${TMP_LOGFILE} >&2
+      rm ${TMP_LOGFILE}
+      false
+      return
+    fi
+  done
+}
+
+rtpproxy_stop() {
+  SIGNAME="${1}"
+  if ! kill -${SIGNAME} `cat ${TMP_PIDFILE}`
+  then
+    if [ -e ${RTPP_RUNDIR}/core ]
+    then
+      gdb --command=${BUILDDIR}/gdb.gettrace ${RTPPROXY} ${RTPP_RUNDIR}/core >&2 && rm ${RTPP_RUNDIR}/core
+    fi
+    cat ${TMP_LOGFILE} >&2
+    false
+    return
+  fi
+  _i=0
+  while [ -e ${TMP_PIDFILE} ]
+  do
+    sleep 1
+    _i=$((${_i} + 1))
+    if [ ${_i} -eq 3 ]
+    then
+      kill -KILL `cat ${TMP_PIDFILE}`
+      cat ${TMP_LOGFILE} >&2
+      rm ${TMP_LOGFILE}
+      false
+      return
+    fi
+  done
+}
+
+witness_start() {
+  TESTNAME=${1}
+  WITNESS_ADD_FILES="${2}"
+  PCAP_NAME="${TESTNAME}.${TEST_TIMESTAMP}.debug.pcap"
+  if [ "${TEST_WITNESS_ENABLE}" = "" ]
+  then
+    return
+  fi
+  if ${SUDO} true
+  then
+    for file in /tmp/witness.pid ${PCAP_NAME}
+    do
+      if [ -e ${file} ]
+      then
+        ${SUDO} rm ${file}
+      fi
+    done
+    ${SUDO} sh -c "echo \${$} > /tmp/witness.pid && exec ${TCPDUMP} -B 4096 -w ${PCAP_NAME} -s0 -ni ${LOOPBACK_INTERFACE} udp and not port ${TRASH_PORT1} 2>/dev/null" &
+    while [ ! -e ${PCAP_NAME} ]
+    do
+      sleep 1
+    done
+    WITNESS_PID=`cat /tmp/witness.pid`
+    ${SUDO} rm /tmp/witness.pid
+  fi
+}
+
+witness_stop() {
+  if [ "${WITNESS_PID}" != "" ]
+  then
+    ${SUDO} kill -TERM ${WITNESS_PID} 2>/dev/null
+    if [ "${WITNESS_ADD_FILES}" != "" ]
+    then
+      WITNESS_NAME="${TESTNAME}.${TEST_TIMESTAMP}.debug.tbz2"
+      ${TAR} ${TAR_COMPRESS_FLAG} -cf ${WITNESS_NAME} "${PCAP_NAME}" ${WITNESS_ADD_FILES}
+    else
+      WITNESS_NAME="${PCAP_NAME}"
+    fi
+    curl -F "pcap_meta_data=somePcapInfo" -F "pcap_file=@${WITNESS_NAME}" hooks.sippysoft.com:80/rtpproxy/pcap_catcher
+    echo ""
+    ${SUDO} rm -f ${PCAP_NAME}
+  fi
+}
+
+forcefail() {
+  RC=${1}
+  if [ ${RC} -eq 0 ]
+  then
+    echo >&2 "ALERT, forcefail() called with the bogus 0 RC!"
+    ${RC}=1
+  fi
+  shift
+  echo >&2 "FAILED: (rc=${RC})" "${@}"
+  if [ -n "$CONTINUE" ] ; then
+    return
+  fi
+  if [ -n "$INTERACTIVE" ] ; then
+    read -p "Continue? (y/n)" YN
+    if [ "$YN" = 'y' ] ; then
+      return
+    fi
+  fi
+  witness_stop
+  exit $RC
+}
+
+fail() {
+  forcefail ${?} "$@"
+}
+
+ok() {
+  echo >&2 "OK:" "$@"
+}
+
+report_rc() {
+  RC=${1}
+  shift
+  if [ ${RC} -eq 0 ]
+  then
+    ok "${@}"
+  else
+    fail "${@}"
+  fi
+}
+
+report() {
+  RC=${?}
+  report_rc ${RC} "${@}"
+}
+
+reportifnotfail() {
+  RC=$?
+  if [ "$RC" = 0 ]
+  then
+    false
+    fail "$@"
+  else
+    true
+    ok "$@"
+  fi
+}

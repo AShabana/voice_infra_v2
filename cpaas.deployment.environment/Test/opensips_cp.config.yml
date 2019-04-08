@@ -1,0 +1,38 @@
+
+  - name: test replace in multi files
+    replace:
+        path: "{{ item.src }}"
+        regexp: '.*\$config->db_host =.*;'
+        replace: '$config->db_host = "{{ ips.mysql }}";'
+        backup: no
+    with_filetree: ../../cpaas.ocp/source/opensips-cp/config
+    when: item.state == 'file' and "db.inc.php" in item.src
+
+
+  - name: replaceusername
+    replace:
+        path: "{{ item.src }}"
+        regexp: '.*(\$config->db_user.*) = (.*);'
+        replace: '\1 = "{{ db.username }}";'
+        backup: no
+    with_filetree: ../../cpaas.ocp/source/opensips-cp/config
+    when: item.state == 'file' and "db.inc.php" in item.src
+
+
+  - name: replaceusername
+    replace:
+        path: "{{ item.src }}"
+        regexp: '.*(\$config->db_pass.*) = (.*);'
+        replace: '\1 = "{{ db.password }}";'
+        backup: no
+    with_filetree: ../../cpaas.ocp/source/opensips-cp/config
+    when: item.state == 'file' and "db.inc.php" in item.src
+
+  - name: replaceusername
+    replace:
+        path: "{{ item.src }}"
+        regexp: '.*(\$config->db_name.*) = (.*);'
+        replace: '\1 = "{{ os.database }}";'
+        backup: no
+    with_filetree: ../../cpaas.ocp/source/opensips-cp/config
+    when: item.state == 'file' and "db.inc.php" in item.src

@@ -1,0 +1,836 @@
+
+logout
+ubuntu@ip-192-168-104-109:~$ logout
+Connection to 192.168.104.109 closed.
+
+Shabana@DESKTOP-B30PKJ2 MINGW64 /d/Devel
+$ ssh $sbc
+sudoWelcome to Ubuntu 16.04.2 LTS (GNU/Linux 4.4.0-72-generic x86_64)
+
+ * Documentation:  https://help.ubuntu.com
+####### Gloal Parameters #########
+log_level=3
+log_stderror=yes
+log_facility=LOG_LOCAL0
+debug_mode=1
+children=1
+auto_aliases=no
+
+alias=voice.cequens.com
+alias=sip.cequens.net
+alias=192.168.104.109
+alias=52.50.205.41 #add public ip
+
+mhomed=1
+
+# TODO: this should re-write to be
+# listen=tcp:192.168.104.109:5060  as tcp:52.50.205.41
+listen=tcp:192.168.104.109:5061   use_children 1               # LAN Interface
+listen=udp:192.168.104.109:5061    use_children 5               # LAN Interface
+listen=ws:192.168.104.109:8081
+
+tcp_children = 10
+tcp_keepalive = 1
+
+advertised_address="52.50.205.41"
+
+####### Modules Section ########
+#mpath="/usr/local/lib64/opensips/modules"
+mpath="/usr/local/lib64/opensips/modules"
+
+loadmodule "proto_ws.so"
+
+
+####### Restful client ########
+loadmodule "rest_client.so"
+#modparam("rest_client", "ssl_verifypeer", 0)
+#modparam("rest_client", "ssl_verifyhost", 0)
+#modparam("rest_client", "ssl_verifyhost", 0)
+
+
+########## OPTIONS Module ####
+loadmodule "options.so"
+
+########## USRLOC Module ####
+loadmodule "usrloc.so"
+modparam("usrloc", "nat_bflag", "NAT")
+modparam("usrloc", "db_mode",   0)
+
+###NAT Helper###
+loadmodule "nathelper.so"
+modparam("nathelper", "natping_interval", 10)
+modparam("nathelper", "ping_nated_only", 1)
+modparam("nathelper", "sipping_bflag", "SIP_PING_FLAG")
+modparam("nathelper", "sipping_from", "sip:pinger@sip.cequens.net") #CUSTOMIZE ME
+modparam("nathelper", "received_avp", "$avp(received_nh)")
+
+
+loadmodule "textops.so"
+
+#### Domain module
+loadmodule "domain.so"
+modparam("domain", "db_url", "mysql://root:3ala6ool@sipbd.cv1kr31x3yrv.eu-west-1.rds.amazonaws.com:3306/opensips23")
+modparam("domain", "db_mode", 1)   # Use caching
+
+#### SIGNALING module
+loadmodule "signaling.so"
+
+#### StateLess module
+loadmodule "sl.so"
+
+#### Transaction Module
+loadmodule "tm.so"
+modparam("tm", "fr_timeout", 5)
+modparam("tm", "fr_inv_timeout", 120)
+modparam("tm", "restart_fr_on_each_reply", 0)
+modparam("tm", "onreply_avp_mode", 1)
+
+#### Record Route Module
+loadmodule "rr.so"
+/* do not append from tag to the RR (no need for this script) */
+modparam("rr", "append_fromtag", 1)
+
+## UAC
+loadmodule "uac.so"
+modparam("uac","restore_mode","auto")
+
+loadmodule "uac_auth.so"
+modparam("uac_auth","auth_realm_avp","$avp(domain)")
+modparam("uac_auth","auth_username_avp","$avp(username)")
+modparam("uac_auth","auth_password_avp","$avp(password)")
+
+#### MAX ForWarD module
+loadmodule "maxfwd.so"
+
+#### SIP MSG OPerations module
+loadmodule "sipmsgops.so"
+
+#### FIFO Management Interface
+loadmodule "mi_fifo.so"
+modparam("mi_fifo", "fifo_name", "/tmp/opensips_fifo")
+modparam("mi_fifo", "fifo_mode", 0666)
+
+### HTTPD module for JSON
+loadmodule "httpd.so"
+modparam("httpd", "ip", "192.168.104.109")
+modparam("httpd", "port", 3355)
+### JSON Managment Interface
+loadmodule "mi_json.so"
+modparam("mi_json", "mi_json_root", "json")
+
+#### URI module
+loadmodule "uri.so"
+modparam("uri", "use_uri_table", 0)
+
+#### MYSQL module
+loadmodule "db_mysql.so"
+
+#### AVPOPS module
+loadmodule "avpops.so"
+modparam("avpops", "db_url","mysql://root:3ala6ool@sipbd.cv1kr31x3yrv.eu-west-1.rds.amazonaws.com:3306/opensips23") # CUSTOMIZE ME
+#modparam("avpops", "avp_table", "usr_preferences")
+
+####  DYNAMIC ROUTING module
+loadmodule "drouting.so"
+modparam("drouting", "db_url","mysql://root:3ala6ool@sipbd.cv1kr31x3yrv.eu-west-1.rds.amazonaws.com:3306/opensips23") # CUSTOMIZE ME
+modparam("drouting", "gw_sock_avp", '$avp(dr_sock)')
+modparam("drouting", "gw_id_avp", '$avp(gw_id)')
+
+####  PERMISSIONS module
+loadmodule "permissions.so"
+modparam("permissions", "db_url","mysql://root:3ala6ool@sipbd.cv1kr31x3yrv.eu-west-1.rds.amazonaws.com:3306/opensips23") # CUSTOMIZE ME
+
+#### ACCounting module
+loadmodule "acc.so"
+/* what special events should be accounted ? */
+modparam("acc", "early_media", 0)
+modparam("acc", "report_cancels", 0)
+/* by default we do not adjust the direct of the sequential requests.
+   if you enable this parameter, be sure the enable "append_fromtag"
+   in "rr" module */
+modparam("acc", "detect_direction", 0)
+modparam("acc", "db_url", "mysql://root:3ala6ool@sipbd.cv1kr31x3yrv.eu-west-1.rds.amazonaws.com:3306/opensips23") # CUSTOMIZE ME
+modparam("acc", "aaa_url", "radius:/etc/radiusclient-ng/radiusclient.conf")
+modparam("acc", "extra_fields","aaa:extra_au->Digest-User-Name;\
+extra_ru->Sip-Translated-Request-URI;\
+extra_rpid->Sip-RPid;\
+extra_si->Sip-Source-IP-Address;\
+extra_username->User-Name;\
+extra_ar->Sip-User-Realm;\
+extra_rd->SIP-AVP;\
+extra_fU->Calling-Station-Id;\
+extra_rU->Called-Station-Id;\
+extra_rc_sid->Sip-Group")
+#extra_event->Event") # Add extra data
+#extra_ua->User-Agent;\ ### TODO: fixme bad attr
+## TODO fix me extra_ar
+# TODO fix extra_contact->Contact;\
+
+modparam("acc", "service_type", 15) # Set the service_type to 15 #TODO : check if it is the rad dic
+
+
+#### DIALOG module
+loadmodule "dialog.so"
+modparam("dialog", "dlg_match_mode", 1)
+modparam("dialog", "default_timeout", 21600)  # 6 hours timeout
+modparam("dialog", "db_mode", 2)
+modparam("dialog", "db_url", "mysql://root:3ala6ool@sipbd.cv1kr31x3yrv.eu-west-1.rds.amazonaws.com:3306/opensips23") # CUSTOMIZE ME
+modparam("dialog", "profiles_with_value" ,"trunk")
+modparam("dialog", "profiles_no_value" ,"outbound ;inboud ;restcommz")
+
+
+####  DIALPLAN module
+loadmodule "dialplan.so"
+modparam("dialplan", "db_url","mysql://root:3ala6ool@sipbd.cv1kr31x3yrv.eu-west-1.rds.amazonaws.com:3306/opensips23") # CUSTOMIZE ME
+
+
+####  MI_HTTP module
+loadmodule "proto_udp.so"
+loadmodule "proto_tcp.so"
+modparam("proto_tcp", "tcp_async", 1)
+
+loadmodule "topology_hiding.so"
+
+####  Auth_db module
+loadmodule "auth.so"
+loadmodule "auth_db.so"
+modparam("auth_db", "db_url","mysql://root:3ala6ool@sipbd.cv1kr31x3yrv.eu-west-1.rds.amazonaws.com:3306/opensips23") # CUSTOMIZE ME
+modparam("auth_db", "calculate_ha1", 0)
+modparam("auth_db", "password_column", "password")
+modparam("auth_db", "use_domain", 0)
+
+#### aaa_radius
+
+loadmodule "aaa_radius.so"
+modparam("aaa_radius", "radius_config", "/etc/radiusclient-ng/radiusclient.conf")
+
+loadmodule "auth_aaa.so"
+modparam("auth_aaa", "aaa_url", "radius:/etc/radiusclient-ng/radiusclient.conf")
+
+#loadmodule "avp_radius.so"
+
+#### SIP trace module
+loadmodule "siptrace.so"
+modparam("siptrace", "trace_on", 1)
+modparam("siptrace", "trace_id", "[tid]uri=mysql://root:3ala6ool@sipbd.cv1kr31x3yrv.eu-west-1.rds.amazonaws.com:3306/opensips23;table=sip_trace;")
+
+### RTPProxy #####
+loadmodule "rtpproxy.so"
+modparam("rtpproxy", "rtpproxy_sock", "0 == udp:192.168.104.109:7890")
+
+### Event route ####
+loadmodule "event_route.so"
+
+##### Routing Logic <==> Script entry point <==> main()
+route {
+    script_trace( 1, "$rm from $si, ruri=$ru", "request");
+    xlog("Main route started for new request ... \n");
+        if (uri == myself && method == OPTIONS)
+                options_reply();
+
+    if (!mf_process_maxfwd_header("10")) {
+            sl_send_reply("483","Too Many Hops");
+            exit;
+    }
+
+
+    ####### Sequential request handling ###########################
+    if( has_totag() )
+    {
+        route(sequentialRequestsHandler) ;
+    }
+
+    ####### initial request handling ###########################
+
+    if(is_method("MESSAGE"))
+    {
+        xlog("DEBUG ** ** Received send new SMS request\n");
+        xlog("DEBUG ** ** SID = $hdr(X-RestComm-AccountSid)\n");
+        xlog("DEBUG ** ** Message = $(rb{s.escape.param})\n");
+        xlog("DEBUG ** ** From = $fU\n");
+        xlog("DEBUG ** ** To = $(tU{s.substr,1,0}) \n");
+        if($hdr(X-RestComm-AccountSid))
+        {
+                        #async(rest_get("https://ht.cequens.com/Send.aspx?UserName=$hdr(X-RestComm-AccountSid)&MessageType=Text&Recipients=$(tU{s.substr,1,0})&SenderName=$fU&MessageText=$(rb{s.escape.param})", "$var(respBody)", , "$var(rcode)"), onCurlReply) ;
+        }
+    }
+
+
+    if(is_method("CANCEL"))
+        {
+                if(t_check_trans())
+            {
+                    t_relay();
+                    xlog("DEBUG *** *** CANCEL request relayed \n");
+                    exit;
+            }
+            else{
+                xlog("DEBUG *** *** trying to CANCEL request outside any transaction !! \n");
+            }
+    }
+
+    t_check_trans();
+
+    # preloaded route checking
+    if (loose_route()) {
+            xlog("L_ERR",
+            "Attempt to route with preloaded Route's [$fu/$tu/$ru/$ci] \n");
+            if (!is_method("ACK"))
+                    sl_send_reply("403","Preload Route denied");
+            exit;
+    }
+
+    # record routing
+    if (!is_method("REGISTER|MESSAGE"))
+        record_route();
+
+
+    if (!uri == myself){
+        if (!check_source_address("0"))
+        {
+         sl_send_reply("403", "Relay not permitted.");
+         exit;
+        }
+
+        append_hf("P-hint: outbound\r\n");
+        route(relay);
+    }
+
+    if (uri==myself) {
+        if ((method==OPTIONS) && (! uri=~"sip:.*[@]+.*")) {
+                options_reply();
+        }
+    }
+
+
+
+    if(is_method("INVITE") && !has_totag()){
+
+       ## setflag(22); #sip trace flag # TODO implement sip trace from the document
+            sip_trace("tid", , "sip|xlog", );
+
+        ####NAT detecting ###############################
+        force_rport();
+        if (nat_uac_test("12"))
+        {
+                fix_nated_contact();
+                setflag(NAT);
+                append_hf("P-hint: Initial Invite (Nat) \r\n");
+
+        }
+
+         if ( proto==TCP ||  0 ) setflag(TCP_PERSISTENT);
+         if (isflagset(NAT)) {
+                setbflag(SIP_PING_FLAG);
+         }
+
+        ##Detect Flash Call##########################
+        if (is_present_hf("FlashCall"))
+        {
+                xlog("L_WARN","FlashCall detected \n");
+                setflag(FLASHCALL);
+        }
+
+
+
+        ####### Handle inbound traffic ###########################
+
+                # first check if it comes from our DID providers ( use IP auth with DRouting
+                 if ( is_from_gw("1", "ni","$var(from_gw_attrs)") )
+                 {  # table dr_gateway , 0 -> DID providers
+                     xlog("Incoming DID from gateway ID = $avp(gw_id) \n");
+                         create_dialog();
+                         topology_hiding();
+
+                         # Normalize to remove prix ( 00, + )
+                         if ( !dp_translate("1", "$rU/$rU") )
+                         {
+                             sl_send_reply("404", "Bad PSTN number .") ;
+                             exit ;
+                         }
+
+                         # Normalize from
+                         if(dp_translate("$(var(from_gw_attrs){param.value,caller_dial_plan_id}{s.int})", "$fU/$avp(NewFromUser)"))
+                         {
+                             xlog("translated FROM-User to $avp(NewFromUser) using caller_dial_plan_id= $(var(from_gw_attrs){param.value,caller_dial_plan_id}) \n");
+                             uac_replace_from("$avp(NewFromUser)","sip:$avp(NewFromUser)@$fd");
+                         }
+
+
+                         if ( !do_routing("1", , , , "$var(gw_attrs)",)){
+                                sl_send_reply("404", "DID not found. ") ;
+                                exit ;
+                         }else {
+                             # check number translation
+                             if ( dp_translate("2", "$rU/$rU") )
+                             {
+                                 xlog("number translated.\n");
+                                 if ( !do_routing("0", , , , "$var(gw_attrs)",))
+                                 {
+                                     send_reply("503", "No route found for $ru") ;
+                                     exit ;
+                                 }
+
+                             }
+                             $avp(username) = $(var(gw_attrs){param.value,u}) ;
+                             $avp(password) = $(var(gw_attrs){param.value,p});
+                             $avp(domain)   = $(var(gw_attrs){param.value,d}) ;
+                             xlog("\n *** rd is $rd *** \n") ;
+                             xlog("\n *** avp.username  is $avp(username) *** \n") ;
+                             xlog("\n *** avp.password  is $avp(password) *** \n") ;
+                             xlog("\n *** avp.domain is $avp(domain) *** \n") ;
+
+                             if(dp_translate("$(var(gw_attrs){param.value,caller_dial_plan_id}{s.int})", "$fU/$avp(NewFromUser)"))
+                             {
+                                 xlog("translated FROM-User to var $avp(NewFromUser) \n");
+                                 uac_replace_from("$avp(NewFromUser)","sip:$avp(NewFromUser)@$fd");
+                             }
+                             # Normalize called based on gw called_dial_plan_id
+                             if ( dp_translate("$(var(gw_attrs){param.value,called_dial_plan_id}{s.int})", "$rU/$rU") )
+                             {
+                                 xlog("called normalized to $rU .\n");
+                             }
+                         }
+                   }
+       else
+       { # Start of outboud call handling
+           xlog("Not Incoming DID call\n");
+           if ( get_source_group("$var(group)") )
+           {
+               # do something with $var(group)
+               xlog("group is $var(group)\n");
+           };
+
+
+           if (!check_source_address("2") && !check_source_address("11") && !check_source_address("1") )  #check source IP Address
+           {
+               sl_send_reply("403", "Forbidden IP address");
+               exit;
+           }
+
+           # Check if it is from RestComm
+           #if (check_source_address("11"))
+           #{
+           #    if(!$hdr(X-RestComm-AccountSid))
+           #    {
+           #        if ( get_source_group("$var(group)") )
+           #        {
+           #            # do something with $var(group)
+           #            xlog("group is $var(group)\n");
+           #        };
+           #        sl_send_reply("403", "Forbidden RC local Sip Clients from termination" );
+           #        exit;
+           #    }
+           #    #### ToDo Handle un-auth Account SID from RestComm
+           #    #### Very important action should be taken her
+           #}
+
+           if ( !is_from_gw("3", "ni","$var(from_gw_attrs)") ){
+               if (!aaa_proxy_authorize(""))
+               {   # Realm and URI user will be autogenerated
+                   proxy_challenge("", "0");
+                   exit;
+               }
+            consume_credentials();
+            }
+                        xlog("DEBUG: ****** Radius attribute dr_rule_group_id ( $avp(dr_rule_group_id) ) \n ") ;
+                        $avp(radiusRuleId) = $(avp(dr_rule_group_id){s.int}) ;
+
+            create_dialog('B');
+            topology_hiding();
+                        store_dlg_value("Trans_User_Name", "$au");
+                        $acc_extra(extra_rc_sid) = $hdr(X-RestComm-AccountSid);
+
+            ### This  must be deleted
+            #if($hdr(X-RestComm-AccountSid)){
+                        #    #t_reply("491", "");
+            #    t_cancel_branch();
+            #    exit ;
+            #}
+            ### End
+
+
+
+                        xlog("if it is a PSTN call \n");
+                        if ( !dp_translate("1", "$rU/$rU") )
+                        {
+                                send_reply("404"," Bad PSTN number");
+                                exit;
+                        }
+
+                        # check number translation
+                        if ( dp_translate("2", "$rU/$rU") )
+                        {
+                                xlog("number translated.\n");
+                        }
+
+                        if (!route_to_gw("$hdr(RouteTO))", "$var(gw_attrs)")  ) #for static routing
+                        {
+                                if(!do_routing( "$avp(radiusRuleId)", , , , "$var(gw_attrs)",))
+                                {
+                                        if ( !do_routing("1", , , , "$var(gw_attrs)",)) ## If it is not a local DID
+                                        {
+                                                if (!do_routing("0", , , , "$var(gw_attrs)",))
+                                                {
+                                                        send_reply("503", "No route found.") ;
+                                                        exit ;
+                                                }
+                                        }
+                                }
+                        }
+
+                        xlog("Relaying to first gateway from our list - $var(gw_attrs)\n");
+            $var(from_domain) = $fd ;
+                        if($(var(gw_attrs){param.value,adv_addr})) {
+                $avp(advertised_address) = $(var(gw_attrs){param.value,adv_addr}) ;
+                set_advertised_address("$avp(advertised_address)");
+                #$var(new_uri) = "sip:"+$fU+"@" + $avp(advertised_address);
+                #uac_replace_from("$var(new_uri)") ;
+                $var(from_domain) = $(var(gw_attrs){param.value,d})  ;
+                xlog("\n *** avp.advertised_address  is $avp(advertised_address) *** \n") ;
+                        }
+
+                        $avp(username) = $(var(gw_attrs){param.value,u}) ; # u stands for username
+                        $avp(password) = $(var(gw_attrs){param.value,p});  # p stands for password
+                        $avp(domain)   = $(var(gw_attrs){param.value,d}) ; # d stands for domain
+                        $avp(bname)   = $(var(gw_attrs){param.value,b}) ; # b stands for billing name of the trunk to be added to CDR
+                        $var(mediaSet)  = $(var(gw_attrs){param.value,m}) ; # m stands for media terminatin set
+                        $var(throughput)  = $(var(gw_attrs){param.value,c}) ; # c stands for trunk max. allowed concurrent calls
+                        # Add route[set_trunk_attr_defaults]
+                        xlog("\n *** rd is $rd *** \n") ;
+                        xlog("\n *** avp.username  is $avp(username) *** \n") ;
+                        xlog("\n *** avp.password  is $avp(password) *** \n") ;
+                        xlog("\n *** avp.domain is $avp(domain) *** \n") ;
+                        xlog("\n *** avp.bname is $avp(bname) *** \n") ;
+                        xlog("\n *** avp.mediaSet is $avp(mediaSet) *** \n") ;
+                        if(!$var(mediaSet))
+                                $var(mediaSet) = "0";
+                        if(!$var(throughput))
+                                $var(throughput) =15;
+                        sip_trace("tid", , "sip|xlog", );
+                        set_dlg_profile("trunk", "$rd");
+                        get_profile_size("trunk", "$rd", "$var(calls)");
+                        $dlg_val(trunk) = $rd;
+                        $dlg_val(user) = $au;
+                        if($hdr(X-RestComm-CallSid)){
+                                $dlg_val(rc_callid)=$hdr(X-RestComm-CallSid);
+                                $dlg_val(user) = $hdr(X-RestComm-AccountSid) ;
+                        }
+                        xlog("--- *** --- Current Trunk $rd active calls $var(calls) from total $var(throughput) \n");
+                        if($(var(calls){s.int}) > $(var(throughput){s.int})){
+                                xlog("--- *** --- Throughput violation error !!! \n\n");
+                                t_reply("486", " No Circuit Available Err 34");
+                                if($hdr(X-RestComm-CallSid)){
+                                        xlog("--- *** --- we will put this call sid in db $hdr(X-RestComm-CallSid) \n") ;
+                                        #Set dialog timeout ### and should be tunable
+                                        $DLG_timeout=60;
+                                        $dlg_val(rc_callid)=$hdr(X-RestComm-CallSid);
+                                        $dlg_val(user) = $hdr(X-RestComm-AccountSid) ;
+                                        #update db table
+                                        xlog("XXXXX \n");
+                                        avp_db_query("INSERT INTO trunk_busy (rc_call_id)  VALUES ('$hdr(X-RestComm-CallSid)')") ;
+                                }
+                        exit ;
+                        }
+
+                        #restcomm Special Handling
+                        #if($au=="restcomm")
+                        #{
+                        #        xlog("RestComm update From $(fn{re.subst,/^\"(.*)\"/\1/})\n");
+                        #        $var(newFrom)="sip:"+$(fn{re.subst,/^"(.*)"/\1/})+"@"+$fd;
+                        #        uac_replace_from("$var(newFrom)");
+                        #}
+                        if(dp_translate("$(var(gw_attrs){param.value,caller_dial_plan_id}{s.int})", "$fU/$avp(NewFromUser)"))
+                        {
+                xlog("translated FROM-User to var $avp(NewFromUser) \n");
+                uac_replace_from("$avp(NewFromUser)","sip:$avp(NewFromUser)@$var(from_domain)");
+                        }
+                        # Normalize called based on gw called_dial_plan_id
+            if ( dp_translate("$(var(gw_attrs){param.value,called_dial_plan_id}{s.int})", "$rU/$rU") )
+            {
+                                xlog("called normalized to $rU .\n");
+            }
+       }
+    }
+
+    if (is_method("PUBLISH|SUBSCRIBE|REGISTER|MESSAGE"))
+    {
+        sl_send_reply("503", "Service Unavailable");
+        exit;
+    }
+
+
+    if ($rU == NULL)
+    {
+        # request with no Username in RURI
+        sl_send_reply("484","Address Incomplete");
+        exit;
+    }
+
+    route(relay);
+}
+
+route [sequentialRequestsHandler]
+{
+
+    if(match_dialog())
+    {
+        # validate the sequential request against dialog
+        if ( $DLG_status!=NULL && !validate_dialog() )
+        {
+            xlog("In-Dialog $rm from $si (callid=$ci) is not valid according to dialog\n");
+            exit;
+        }
+
+        if (nat_uac_test("12"))
+        {
+            fix_nated_contact();
+            setflag(NAT);
+            append_hf("P-hint: seq req (Nat) \r\n");
+        }
+
+        # Re-invite ....
+        if(is_method("INVITE"))
+        {
+            xlog("**** Re-Invite \n");
+            record_route();
+        }
+
+        if (is_method("BYE"))
+        {
+                        #TODO: Handle dialog (outboud || inbound) profile to correctly set src addr and others
+
+                        $acc_extra(extra_ru) = $ru;
+                        $acc_extra(extra_au) = $dlg_val(user);
+                        $acc_extra(extra_rpid) = $avp(rpid);
+                        $acc_extra(extra_si) = $(<request>si);
+                        #$acc_extra(extra_username) = $dlg_val(Trans_User_Name);
+                        #$acc_extra(extra_ar) = $ar;
+                        $acc_extra(extra_fU) = $fU;
+                        $acc_extra(extra_rd) = $dlg_val(trunk);
+                        $acc_extra(extra_rU) = $rU;
+                        $acc_extra(extra_rc_sid) = $dlg_val(rc_callid);
+                        #$acc_extra(extra_contact) = $hdr(contact);  ### TODO
+                        #$acc_extra(extra_event) = $hdr(event);
+            xlog("extra_au---->$acc_extra(extra_au)\n");
+            xlog("extra_ru---->$acc_extra(extra_ru)\n");
+            xlog("extra_rpid---->$acc_extra(extra_rpid)\n");
+            xlog("extra_si---->$acc_extra(extra_si)\n");
+            xlog("extra_rd---->$acc_extra(extra_rd)\n");
+            xlog("extra_fU---->$acc_extra(extra_fU)\n");
+            xlog("extra_rU---->$acc_extra(extra_rU)\n");
+            xlog("extra_rc_sid---->$acc_extra(extra_rc_sid)\n");
+            xlog("sourceaddr si ---->$si\n");
+            if ( check_source_address("11") )
+                        {
+                                xlog("---We Closed the call \n");
+                #async(rest_get("http://192.168.104.207:1880/sbc/status/update?rcid=$dlg_val(rc_callid)&status=weComplete&ds=$Ts" ,"$var(respBody)", , "$var(rcode)"), onCurlReply);
+                rest_get("http://192.168.104.207:1880/sbc/status/update?rcid=$dlg_val(rc_callid)&status=weComplete&ds=$Ts" ,"$var(respBody)", , "$var(rcode)");
+                        }else{
+                #async(rest_get("http://192.168.104.207:1880/sbc/status/update?rcid=$dlg_val(rc_callid)&status=HandSetComplete&ds=$Ts" ,"$var(respBody)", , "$var(rcode)"), onCurlReply);
+                rest_get("http://192.168.104.207:1880/sbc/status/update?rcid=$dlg_val(rc_callid)&status=HandSetComplete&ds=$Ts" ,"$var(respBody)", , "$var(rcode)");
+                                xlog("---hand set closed the call \n");
+                        }
+
+                        sip_trace("tid", , "sip|xlog", );
+            do_accounting("aaa", "cdr|failed|missed"); # do accounting ...
+            #drop_accounting();
+            rtpproxy_unforce();
+        }
+
+        if (check_route_param("nat=yes"))
+        {
+            append_hf("P-hint: found nat=yes \r\n");
+            setflag(NAT);
+        }
+
+        xlog("---- Sequential request handler ---- \n");
+        xlog("$rm | Call-ID: $ci | FT: $ft | TT: $tt\n");
+
+        route(relay);
+    }
+        else
+    {
+        xlog("*** Did not match any Dialog \n");
+        if(is_method("ACK"))
+        {
+            if(t_check_trans())
+            {
+                # non loose-route, but stateful ACK; must be an ACK after
+                # a 487 or e.g. 404 from upstream server
+                t_relay();
+                exit;
+            }
+            else
+            {
+                        # ACK without matching transaction ->
+                        # ignore and discard
+                        exit ;
+            }
+        }
+        sl_send_reply("404","Not here");
+   }
+   exit;
+}
+
+route [onCurlReply]
+{
+    xlog("DEBUG ** Curl Response Start **\n");
+    xlog("$var(respBody)");
+    xlog("DEBUG ** Curl Response End\n") ;
+    if ($rc > 0) {
+                xlog("Error code $var(rcode) \n");
+                exit;
+     }
+}
+route [relay]
+{
+# for INVITEs enable some additional helper routes
+        if (is_method("INVITE") && isflagset(FLASHCALL))
+        {
+                xlog("This is a Flash Call.\n");
+                t_on_reply("handle_flash_call");
+                t_on_failure("missed_call");
+
+        }
+        else if (is_method("INVITE"))
+        {
+           if (isflagset(NAT)) {
+                        if($avp(advertised_address))
+                rtpproxy_offer(, "$avp(advertised_address)", "$var(mediaSet)",) ;
+                        else
+                rtpproxy_offer(,, "$var(mediaSet)",) ;
+                t_on_reply("handle_nat");
+                t_on_failure("missed_call");
+                        }
+        }
+        if (isflagset(NAT)) {
+                add_rr_param(";nat=yes");
+        }
+
+        if (!t_relay())
+                send_reply("500", "Internal Error");
+
+        exit;
+}
+
+onreply_route[handle_flash_call] { #TODO :Handle Accounting
+
+        script_trace( 1, "$rm from $si, ruri=$ru", "reply");
+
+        if (nat_uac_test("12")){
+                fix_nated_contact();
+                fix_nated_sdp("10");
+        }
+
+        if (t_check_status("183")) {
+                #session progress then set timeout to two seconds
+                $T_fr_inv_timeout=3;
+        }
+
+        if (t_check_status("200")) {
+                # Ringing then cancel call
+                t_cancel_branch("a");
+        }
+
+
+}
+
+onreply_route[handle_nat] {
+
+    script_trace( 1, "$rm from $si, ruri=$ru", "reply");
+    if (t_was_cancelled()) {
+        log("transaction was cancelled by UAC\n");
+        t_cancel_branch("a");
+        }
+    if (nat_uac_test("12")){
+            fix_nated_contact();
+    }
+        #rtpproxy_answer() ;
+        #xlog("Media port $var(mPort) from media termination  )\n");
+    $T_fr_inv_timeout=30;
+        xlog("--- from Reply route reply code is $T_reply_code\n");
+        xlog("--- from Reply route T_fr_inv_timeout -> $T_fr_inv_timeout \n");
+        if( t_check_status("200") && $dlg_val(rc_callid) ) {
+       xlog("--- edited Calling curl call opened\n");
+           rtpproxy_answer() ;
+           xlog("Media port $var(mPort) from media termination  )\n");
+       ####async(rest_get("http://192.168.104.207:1880/sbc/status/update?rcid=123&status=started&ds=$Ts" ,"$var(respBody)", , "$var(rcode)"), onCurlReply);
+       rest_get("http://192.168.104.207:1880/sbc/status/update?rcid=$dlg_val(rc_callid)&status=started&ds=$Ts","$var(respBody)", , "$var(rcode)") ;
+        }
+        if( $T_reply_code > 400 && $T_reply_code != 407 && $dlg_val(rc_callid)  ) {
+       xlog("--- Calling curl call opened\n");
+       #async(rest_get("http://192.168.104.207:1880/sbc/status/update?rcid=$dlg_val(rc_callid)&status=Failed&ds=$Ts&Error=$T_reply_code" ,"$var(respBody)", , "$var(rcode)"), onCurlReply);
+       rest_get("http://192.168.104.207:1880/sbc/status/update?rcid=$dlg_val(rc_callid)&status=Failed&ds=$Ts&Error=$T_reply_code","$var(respBody)", , "$var(rcode)" ) ;
+        }
+}
+
+failure_route[missed_call] {
+        if(t_was_cancelled()){
+                exit ;
+        }
+        # Add route to resolve per trunk reply translation .
+        #if( t_check_status("480") && $dlg_val(trunk) =~ '.*esnad-bpo.local' ) {
+        #    xlog("--- Special onreply translation for trunk $dlg_val(trunk) \n");
+                #       t_reply("486", "Busy.");
+        #}
+        #if( t_check_status("404") && $dlg_val(trunk) =~ '.*esnad-bpo.local' ) {
+        #    xlog("--- Special onreply translation for trunk $dlg_val(trunk) \n");
+                #       t_reply("480", "Busy.");
+        #}
+        #if( t_check_status("486") && $dlg_val(trunk) =~ '.*esnad-bpo.local' ) {
+        #    xlog("--- Special onreply translation for trunk $dlg_val(trunk) \n");
+                #       t_reply("480", "No Answer.");
+        #}
+
+        if( t_check_status("407") ) {
+
+                                $acc_extra(extra_au) = $au ;
+                                $acc_extra(extra_ru) = $ru;
+                                $acc_extra(extra_rpid) = $avp(rpid);
+                                $acc_extra(extra_si) = $si;
+                                $acc_extra(extra_username) =  $(<request>au);
+                                $acc_extra(extra_ar) = $ar;
+                                $acc_extra(extra_fU) = $fU;
+                                $acc_extra(extra_rU) = $rU+"@missed.call";
+                                #$acc_extra(extra_ua) = $hdr(user-agent);  ### TODO
+                                #$acc_extra(extra_contact) = $hdr(contact);  ### TODO
+                                $acc_extra(extra_rc_sid) = $hdr(X-RestComm-AccountSid);
+                                #$acc_extra(extra_event) = $hdr(event);
+
+                drop_accounting("aaa|log|db", "cdr|failed");
+                t_on_failure("missed_call");
+                uac_auth();
+                t_relay();
+
+                #do_accounting("aaa|log|db", "cdr|failed"); # handle.now TODO
+
+        }
+        exit ;
+}
+
+event_route[E_DLG_STATE_CHANGED] {
+   fetch_event_params("$avp(nstate);$avp(ostate)");
+   xlog("L_INFO", " --- *** newstate $avp(d) oldstate $avp(c) of dialog \n");
+    xlog("--- !!! DLG_status is ($DLG_status) \n");
+        switch($DLG_status)
+        {
+                case 1:
+                        xlog("--- Dialog.Status -> Unconfirmed *INVITE sent no reply received*\n");
+                        break;
+                case 2:
+                        xlog("--- Dialog.Status -> Early.State *INVITE sent provisional reply received*\n");
+                        break;
+                case 3:
+                        xlog("--- Dialog.Status -> Confirmed *INVITE sent 200 OK received no ACK yet*\n");
+                        break;
+                case 4:
+                        xlog("--- Dialog.Status -> Established *INVITE sent 200 OK received ,ACK confirmed*\n");
+                        break;
+                case 5:
+                        xlog("--- Dialog.Status -> BYE received\n");
+                        break;
+                default:
+                        xlog("--- Dialog.Status -> Not Found\n");
+        }
+}

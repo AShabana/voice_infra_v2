@@ -1,0 +1,96 @@
+version: '2.1'
+
+services:
+    mysql:
+       image: "937907730099.dkr.ecr.us-east-1.amazonaws.com/mysql"
+       env_file:
+            - "./testing_env"
+       networks:
+             br0:
+                ipv4_address: "192.168.13.100"
+       healthcheck:
+            test: ["CMD", "ls", "/run/mysqld/mysqld.pid"]
+            interval: 15s
+            timeout: 10s
+            retries: 5
+       logging:
+            options: 
+                max-size: "100m"
+                max-file: "5"
+
+
+    opensips:
+        image: "937907730099.dkr.ecr.us-east-1.amazonaws.com/opensips:2.4.5"
+        env_file:
+            - "./testing_env"
+        volumes: 
+            - "../../cpaas.opensips/etc/opensips:/etc/opensips"
+            - "../../cpaas.opensips/etc/radiusclient-ng:/etc/radiusclient-ng"
+        depends_on:
+             mysql:
+                condition: service_healthy
+        command: "/etc/opensips/run.sh"
+        logging:
+            options: 
+                max-size: "100m"
+                max-file: "5"
+        network_mode: host
+
+    radius:
+       image: "tpdock/freeradius"
+       env_file:
+            - "./testing_env"
+       depends_on:
+            - "opensips"
+       volumes: 
+            - "../../cpaas.radius/dictionary:/usr/share/freeradius"
+            - "../../cpaas.radius/etc/freeradius:/etc/freeradius"
+       networks:
+             br0: 
+                ipv4_address: "192.168.13.11"
+       logging:
+            options: 
+                max-size: "100m"
+                max-file: "5"
+
+
+#
+    ocp:
+       image: "nimmis/apache-php5"
+       volumes: 
+            - "../../cpaas.ocp/source8.2.4:/var/www"
+            - "../../cpaas.ocp/docker:/docker"
+       entrypoint: sh /docker/run.sh
+       depends_on:
+            - "opensips"
+       network_mode: host
+       logging:
+            options: 
+                max-size: "100m"
+                max-file: "5"
+
+
+    rtpproxy:
+       build:
+         context: ../../cpaas.rtpproxy
+         dockerfile: Dockerfile
+       image: "cequens/rtpproxy"
+       volumes: 
+            - "../../cpaas.rtpproxy/source:/src"
+            - "../../cpaas.rtpproxy/docker:/docker"
+       entrypoint: sh /docker/run.sh
+       network_mode: host
+       logging:
+            options: 
+                max-size: "100m"
+                max-file: "5"
+
+
+networks:
+    br0:
+        driver: bridge
+        ipam:
+            driver: default
+            config:
+                - subnet: "192.168.13.0/24"
+

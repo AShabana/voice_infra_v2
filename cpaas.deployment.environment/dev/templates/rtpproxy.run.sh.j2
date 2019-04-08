@@ -1,0 +1,1 @@
+rtpproxy -A {{ips.opensips_public}}/{{ips.opensips}} -l {{ips.opensips_public}} -s udp:{{ips.opensips_public}}:{{rtpproxy.ctrl_port}}  -i -n tcp:{{ips.opensips_public}}:{{rtpproxy.notify_port}} -T {{rtpproxy.max_mutted_call_duration}} -W {{rtpproxy.max_mutted_call_duration}} -F -f -d DBUG:LOG_LOCAL2

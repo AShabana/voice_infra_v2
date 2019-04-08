@@ -1,0 +1,10 @@
+
+- name: Fail if boxnumber is not defined
+  fail: msg="This task requires 'boxnumber' variable"
+  when: boxnumber is not defined
+
+- name: Undefine namespace
+  virt: "name={{ vm_name }} command=undefine"
+
+- name: Remove the QCOW file
+  file: "path={{libvirt_basedir}}{{ vm_name }}.qcow2 state=absent"

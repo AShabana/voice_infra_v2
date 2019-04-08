@@ -1,0 +1,15 @@
+version: '2.1'
+
+services:
+   radius:
+       build:
+           context: .
+           dockerfile: Dockerfile
+       image: "tpdock/freeradius"
+       env_file:
+           - "./env_vars"
+       volumes:
+           - "../dictionary:/usr/share/freeradius"
+           - "../etc/freeradius:/etc/freeradius"
+           - "./templates:/templates"
+       network_mode: host

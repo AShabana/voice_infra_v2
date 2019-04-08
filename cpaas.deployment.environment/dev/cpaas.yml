@@ -1,0 +1,241 @@
+# To add new component AT LEAST you need to add 2 sections 
+# (1) Including VARS Section
+# (2) Build File From Template Section
+# Pending :
+#	1. use include instead of one file
+#	2. use vault for passwords
+#	3. rewrite using ansible playbook best practise *least priority*
+---
+- name: Preparing localhost
+
+  hosts: localhost
+  connection: local
+
+  tasks:
+
+# Including VARs Section
+  - name: Importing Infrastructure network variables
+    include_vars:
+        file: ./environment_variables/network.yml
+        name: ips
+
+  - name: Importing RCW RestComm Wrapper vars
+    include_vars:
+        file: ./environment_variables/rcw.yml
+        name: rcw
+
+  - name: Importing radius variables
+    include_vars:
+        file: environment_variables/radius.yml
+        name: rad
+
+  - name: Importing database variables
+    include_vars:
+        file: environment_variables/database.yml
+        name: db
+
+  - name: Importing opensips variables
+    include_vars:
+        file: environment_variables/opensips.yml
+        name: os
+
+  - name: Importing opensips control panel variables
+    include_vars:
+        file: environment_variables/opensips-cp.yml
+        name: oscp
+
+  - name: Importing opensips sip clients variables
+    include_vars:
+        file: environment_variables/sip_clients.yml
+        name: sip
+
+  - name: Importing restcomm  variables
+    include_vars:
+        file: environment_variables/restcomm.yml
+        name: rc
+
+  - name: Importing production ips
+    include_vars:
+        file: ../prodoction/environment_variables/network.yml
+        name: production_ips
+
+  - name: Importing RTPProxy variables
+    include_vars:
+        file: environment_variables/rtpproxy.yml
+        name: rtpproxy
+
+  - name: Importing production opensips
+    include_vars:
+        file: ../prodoction/environment_variables/opensips.yml
+        name: production_os
+
+#  - name: Insure the Host state for pre-requests packages 
+#    yum:
+#        name: "{{ item }}" 
+#        state: latest
+#    with_items:
+#        - git
+#        - docker
+#        - tree
+#        - tmux
+#
+  - name: Insure the docker-compose state
+    get_url: 
+        url: https://github.com/docker/compose/releases/download/1.15.0/docker-compose-Linux-x86_64
+        dest: /sbin/docker-compose
+        mode: 0555
+
+  - name: Building the docker-compose.yml from vars
+    template:
+        src: templates/docker-compose.yml.j2
+        dest: ./docker-compose.yml
+
+  #- include_tasks: ./opensips_cp.config.yml
+
+#############################################
+## OpenSips CP old version 7.3
+#  - name: find command
+#    find: paths="../../cpaas.ocp/source/opensips-cp/config" recurse=yes patterns="db.inc.php"
+#    register: conf_file
+#
+#  - name: ocp replace dbhost
+#    replace:
+#        path: "{{ item.path }}"
+#        regexp: '\$config->db_host =.*;'
+#        replace: '$config->db_host = "{{ ips.mysql }}";'
+#        backup: no
+#    with_items: "{{ conf_file.files }}"
+#
+#
+#  - name: ocp replaceusername
+#    replace:
+#        path: "{{ item.path }}"
+#        regexp: '.*(\$config->db_user.*) = (.*);'
+#        replace: '\1 = "{{ db.user }}";'
+#        backup: no
+#    with_items: "{{ conf_file.files }}"
+#
+#
+#  - name: ocp replace password 
+#    replace:
+#        path: "{{ item.path }}"
+#        regexp: '.*(\$config->db_pass.*) = (.*);'
+#        replace: '\1 = "{{ db.password }}";'
+#        backup: no
+#    with_items: "{{ conf_file.files }}"
+#
+#  - name: ocp configure database name
+#    replace:
+#        path: "{{ item.path }}"
+#        regexp: '.*(\$config->db_name.*) = (.*);'
+#        replace: '\1 = "{{ os.database }}";'
+#        backup: no
+#    with_items: "{{ conf_file.files }}"
+
+#######################
+## OpenSips CP version 8.2.4
+  - name: find command
+    find: paths="../../cpaas.ocp/source8.2.4/opensips-cp/config" recurse=yes patterns="db.inc.php"
+    register: conf_file2
+
+  - name: ocp replace dbhost
+    replace:
+        path: "{{ item.path }}"
+        regexp: '\$config->db_host =.*;'
+        replace: '$config->db_host = "{{ ips.mysql }}";'
+        backup: no
+    with_items: "{{ conf_file2.files }}"
+
+
+  - name: ocp replaceusername
+    replace:
+        path: "{{ item.path }}"
+        regexp: '.*(\$config->db_user.*) = (.*);'
+        replace: '\1 = "{{ db.user }}";'
+        backup: no
+    with_items: "{{ conf_file2.files }}"
+
+
+  - name: ocp replace password 
+    replace:
+        path: "{{ item.path }}"
+        regexp: '.*(\$config->db_pass.*) = (.*);'
+        replace: '\1 = "{{ db.password }}";'
+        backup: no
+    with_items: "{{ conf_file2.files }}"
+
+  - name: ocp configure database name
+    replace:
+        path: "{{ item.path }}"
+        regexp: '.*(\$config->db_name.*) = (.*);'
+        replace: '\1 = "{{ os.database }}";'
+        backup: no
+    with_items: "{{ conf_file2.files }}"
+
+
+
+# Build File From Template Section
+  #- include_tasks: ./opensips_cp.config.yml
+  - name: write  ocp.boxes.global.inc.php from template
+    template:
+        src: templates/ocp.boxes.global.inc.php.j2
+        dest: "../../cpaas.ocp/source8.2.4/opensips-cp/config/boxes.global.inc.php"
+
+  - name: write  ocp.siptrace.local.inc.php from template
+    template:
+        src: templates/ocp.siptrace.local.inc.php.j2
+        dest: "../../cpaas.ocp/source8.2.4/opensips-cp/config/tools/system/siptrace/local.inc.php"
+
+
+  - name: Building the opensips.cfg from vars
+    template:
+        src: templates/opensips.cfg.j2
+        dest: ../../cpaas.opensips/etc/opensips/opensips.cfg
+
+  - name: Building rtpproxy run.sh from vars
+    template:
+        src: templates/rtpproxy.run.sh.j2
+        dest: ../../cpaas.rtpproxy/docker/run.sh
+
+  - name: Building the opensips-cp run.sh  from vars
+    template:
+        src: templates/opensips-cp.run.sh.j2
+        dest: ../../cpaas.ocp/docker/run.sh
+
+  - name: Building the radiusclient.conf from vars
+    template:
+        src: templates/radiusclient.conf.j2
+        dest: ../../cpaas.opensips/etc/radiusclient-ng/radiusclient.conf
+
+  - name: Building the radius server config file from vars ( server -> key )
+    template:
+        src: templates/radius.server.j2
+        dest: ../../cpaas.opensips/etc/radiusclient-ng/servers
+
+  - name: Building the opensips entry point script
+    template:
+        src: templates/opensips.run.sh.j2
+        dest: ../../cpaas.opensips/etc/opensips/run.sh
+        mode: 0555
+
+#  - name: Building the restcomm docker env vars
+#    template:
+#        src: templates/restcomm_local_env.j2
+#        dest: ../../RestComm-Docker/restcomm_local
+
+  - name: Building the compose env variables
+    template:
+        src: templates/env_vars.j2
+        dest: ./testing_env
+
+  - name: Building opensipsctlrc
+    template:
+        src: templates/opensipsdbctl.j2
+        dest: ../../cpaas.opensips/etc/opensips/opensipsdbctl
+        mode: 0555
+
+  - name: Building asterisk sip.conf
+    template:
+        src: templates/asterisk.sip.conf.j2
+        dest: ../../cpaas.asterisk/etc/sip.conf
+

@@ -1,0 +1,134 @@
+---
+- name: Preparing opensips
+    
+  hosts: opensips
+  vars:
+    base_dir: /usr/local/src/opensips2.3-cp
+    aws_env:
+        AWS_ACCESS_KEY_ID: AKIAINWPBS3CZESKN7KQ   ### Valut
+        AWS_SECRET_ACCESS_KEY: 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   ### Valut
+  become: true
+
+  tasks:
+
+  - name: Importing Infrastructure network variables
+    include_vars:
+        file: environment_variables/network.yml
+        name: ips
+
+
+  - name: Importing opensips control panel variables
+    include_vars:
+        file: environment_variables/opensips-cp.yml
+        name: oscp
+
+  - name: Importing opensips variables
+    include_vars:
+        file: environment_variables/opensips.yml
+        name: os
+
+  - name: Insure the Host state for pre-requests packages
+    apt:
+        name: "{{ item }}"
+        state: latest
+        update_cache: yes
+        allow_unauthenticated: yes
+    with_items:
+         - git
+         - docker.io
+         - tree
+         - tmux
+         - python-pip
+    become: true
+
+  
+  - name: Install aws cli
+    pip:
+        name: awscli
+
+  - name: Configure git helpers to codecommit
+    git_config:
+        name: credential.UseHttpPath
+        value: true
+        scope: global
+  - name: Configure git helpers to codecommit
+    git_config:
+        name: credential.helper
+        value: '!aws codecommit credential-helper $@'
+        scope: global
+
+  - name: Insure the docker-compose state
+    get_url:
+        url: https://github.com/docker/compose/releases/download/1.15.0/docker-compose-Linux-x86_64
+        dest: /sbin/docker-compose
+        mode: 0555
+
+
+  - name: Clone lastest configuration
+    git:
+        repo: https://git-codecommit.eu-west-1.amazonaws.com/v1/repos/cpaas.ocp
+        dest: "{{ base_dir }}"
+        update: no
+    register: config_updated
+    environment: "{{aws_env}}"
+    become: true
+  #- include_tasks: ./opensips_cp.config.yml
+  - name: find command
+    find: paths="/usr/local/src/opensips2.3-cp/source/opensips-cp/config" recurse=yes patterns="db.inc.php"
+    register: conf_file
+
+  - name: ocp replace dbhost
+    replace:
+        path: "{{ item.path }}"
+        regexp: '\$config->db_host =.*;'
+        replace: '$config->db_host = "{{ os.db_host }}";'
+        backup: no
+    with_items: "{{ conf_file.files }}"
+
+
+  - name: ocp replaceusername
+    replace:
+        path: "{{ item.path }}"
+        regexp: '.*(\$config->db_user.*) = (.*);'
+        replace: '\1 = "{{ os.db_user }}";'
+        backup: no
+    with_items: "{{ conf_file.files }}"
+
+
+  - name: ocp replace password 
+    replace:
+        path: "{{ item.path }}"
+        regexp: '.*(\$config->db_pass.*) = (.*);'
+        replace: '\1 = "{{ os.os_db_pass }}";'
+        backup: no
+    with_items: "{{ conf_file.files }}"
+
+  - name: ocp configure database name
+    replace:
+        path: "{{ item.path }}"
+        regexp: '.*(\$config->db_name.*) = (.*);'
+        replace: '\1 = "{{ os.database }}";'
+        backup: no
+    with_items: "{{ conf_file.files }}"
+
+
+  - name: write  ocp.boxes.global.inc.php from template
+    template:
+        src: templates/ocp.boxes.global.inc.php.j2
+        dest: "{{ base_dir }}/source/opensips-cp/config/boxes.global.inc.php"
+
+  - name: write  ocp.siptrace.local.inc.php from template
+    template:
+        src: templates/ocp.siptrace.local.inc.php.j2
+        dest: "{{ base_dir }}/source/opensips-cp/config/tools/system/siptrace/local.inc.php"
+  - name: write  run.sh from template
+    template:
+        src: templates/opensips-cp.run.sh.j2
+        dest: "{{ base_dir }}/docker/run.sh"
+
+  - name: Building the docker-compose.yml from vars
+    copy:
+        src: files/ocp.docker-compose.yml
+        dest: "{{ base_dir }}/docker/docker-compose.yml"
+
+

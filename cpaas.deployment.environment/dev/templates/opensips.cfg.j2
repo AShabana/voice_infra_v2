@@ -1,0 +1,764 @@
+####### Gloal Parameters #########
+log_level={{ os.log_level }}
+log_stderror=yes
+log_facility=LOG_LOCAL0
+debug_mode={{ os.debug }}
+children=1
+auto_aliases=no
+
+alias=voice.cequens.com
+alias=sip.cequens.net
+alias={{ ips.opensips_private }}
+alias={{ ips.opensips_public }} #add public ip
+alias={{ ips.our_vpn_nat_ip }}
+
+mhomed=0
+
+# TODO: this should re-write to be
+# listen=tcp:{{ ips.opensips }}:5060  as tcp:{{ ips.opensips_public }}
+listen=tcp:{{ ips.opensips_public }}:5060   use_children {{os.number_of_threads}} # LAN Interface
+listen=udp:{{ ips.opensips_public }}:5060   use_children {{os.number_of_threads}} # LAN Interface
+listen=tcp:{{ ips.opensips_private }}:5060                   # LAN Interface
+listen=udp:{{ ips.opensips_private}}:5060                   # LAN Interface
+listen=ws:{{ ips.opensips_private }}:8080
+
+tcp_keepalive = 1
+
+advertised_address="{{ ips.opensips_public }}"
+
+####### Modules Section ########
+mpath="/usr/local/src/modules"
+
+loadmodule "proto_ws.so"
+
+####### MQTT ########
+loadmodule "rabbitmq.so"
+modparam("rabbitmq", "server_id", "[MAIN] {{ rcw.event_queue.main }}")
+modparam("rabbitmq", "server_id", "[BACKUP] {{ rcw.event_queue.backup }}")
+
+
+########## OPTIONS Module ####
+loadmodule "options.so"
+
+
+loadmodule "textops.so"
+
+#### Domain module
+loadmodule "domain.so"
+modparam("domain", "db_url", "mysql://{{db.user}}:{{db.password|urlencode}}@{{ips.mysql}}:{{db.port}}/{{os.database}}")
+modparam("domain", "db_mode", 1)   # Use caching
+
+#### SIGNALING module
+loadmodule "signaling.so"
+
+#### StateLess module
+loadmodule "sl.so"
+
+#### Transaction Module
+loadmodule "tm.so"
+modparam("tm", "fr_timeout", 3) #Fail over if no provisional response after 5 seconds *should be 3*
+modparam("tm", "fr_inv_timeout", 20)  #Ringing timeout TODO: Get this value from template
+modparam("tm", "restart_fr_on_each_reply", 0)
+modparam("tm", "onreply_avp_mode", 1)
+
+#### Record Route Module
+loadmodule "rr.so"
+/* do not append from tag to the RR (no need for this script) */
+modparam("rr", "append_fromtag", 1)
+
+## UAC
+loadmodule "uac.so"
+modparam("uac","restore_mode","auto")
+
+loadmodule "uac_auth.so"
+modparam("uac_auth","auth_realm_avp","$avp(domain)")
+modparam("uac_auth","auth_username_avp","$avp(username)")
+modparam("uac_auth","auth_password_avp","$avp(password)")
+
+#### MAX ForWarD module
+loadmodule "maxfwd.so"
+
+#### SIP MSG OPerations module
+loadmodule "sipmsgops.so"
+
+#### FIFO Management Interface
+loadmodule "mi_fifo.so"
+modparam("mi_fifo", "fifo_name", "/tmp/opensips_fifo")
+modparam("mi_fifo", "fifo_mode", 0666)
+
+### HTTPD module for JSON
+loadmodule "httpd.so"
+modparam("httpd", "ip", "{{ ips.opensips_private }}")
+modparam("httpd", "port", {{ os.json_mi_port }})
+
+### JSON Managment Interface
+loadmodule "mi_json.so"
+modparam("mi_json", "mi_json_root", "json")
+
+#### URI module
+loadmodule "uri.so"
+modparam("uri", "use_uri_table", 0)
+
+#### MYSQL module
+loadmodule "db_mysql.so"
+
+#### AVPOPS module
+loadmodule "avpops.so"
+modparam("avpops", "db_url","mysql://{{db.user}}:{{db.password|urlencode}}@{{ips.mysql}}:{{db.port}}/{{os.database}}") # CUSTOMIZE ME
+#modparam("avpops", "avp_table", "usr_preferences")
+
+####  DYNAMIC ROUTING module
+loadmodule "drouting.so"
+modparam("drouting", "db_url","mysql://{{db.user}}:{{db.password|urlencode}}@{{ips.mysql}}:{{db.port}}/{{os.database}}") # CUSTOMIZE ME
+modparam("drouting", "gw_sock_avp", '$avp(dr_sock)')
+modparam("drouting", "gw_id_avp", '$avp(gw_id)')
+
+####  PERMISSIONS module
+loadmodule "permissions.so"
+modparam("permissions", "db_url","mysql://{{db.user}}:{{db.password|urlencode}}@{{ips.mysql}}:{{db.port}}/{{os.database}}") # CUSTOMIZE ME
+
+
+#### DIALOG module
+loadmodule "dialog.so"
+modparam("dialog", "dlg_match_mode", 1)
+modparam("dialog", "default_timeout", 21600)  # 6 hours timeout
+modparam("dialog", "db_mode", 2)
+modparam("dialog", "db_url", "mysql://{{db.user}}:{{db.password|urlencode}}@{{ips.mysql}}:{{db.port}}/{{os.database}}")
+modparam("dialog", "profiles_with_value" ,"trunk")
+modparam("dialog", "profiles_no_value" ,"outbound ;inboud ;restcommz")
+
+
+####  DIALPLAN module
+loadmodule "dialplan.so"
+modparam("dialplan", "db_url","mysql://{{db.user}}:{{db.password|urlencode}}@{{ips.mysql}}:{{db.port}}/{{os.database}}")
+
+
+####  MI_HTTP module
+loadmodule "proto_udp.so"
+loadmodule "proto_tcp.so"
+modparam("proto_tcp", "tcp_async", 1)
+
+#loadmodule "topology_hiding.so"
+
+####  Auth_db module
+loadmodule "auth.so"
+loadmodule "auth_db.so"
+modparam("auth_db", "db_url","mysql://{{db.user}}:{{db.password|urlencode}}@{{ips.mysql}}:{{db.port}}/{{os.database}}")
+modparam("auth_db", "calculate_ha1", 0)
+modparam("auth_db", "password_column", "password")
+modparam("auth_db", "use_domain", 0)
+
+#### auth_aaa
+loadmodule "aaa_radius.so"
+modparam("aaa_radius", "radius_config", "/etc/radiusclient-ng/radiusclient.conf")
+loadmodule "auth_aaa.so"
+modparam("auth_aaa", "aaa_url", "radius:/etc/radiusclient-ng/radiusclient.conf")
+
+#loadmodule "avp_radius.so"
+
+#### SIP trace module
+loadmodule "siptrace.so"
+modparam("siptrace", "trace_on", 1)
+modparam("siptrace", "trace_id", "[tid]uri=mysql://{{db.user}}:{{db.password|urlencode}}@{{ips.mysql}}:{{db.port}}/{{os.database}};table=sip_trace;")
+
+### RTPProxy ##### ##NOTE: we have as many RTPProxy as the number of real ips of the opensips from VPNs or EIP
+loadmodule "rtpproxy.so"
+modparam("rtpproxy", "rtpproxy_sock", "0 == udp:{{ips.opensips}}:{{rtpproxy.ctrl_port}}") #adv addr == 52.50.205.41
+modparam("rtpproxy", "rtpproxy_sock", "1 == udp:{{ips.opensips}}:7891") #adv addr == 196.2.196.20
+modparam("rtpproxy", "rtpp_notify_socket", "tcp:{{ ips.opensips }}:{{rtpproxy.notify_port}}")
+modparam("rtpproxy", "rtpproxy_autobridge", 1) #TODO.now enable this
+modparam("rtpproxy", "default_set", 1)
+#modparam("rtpproxy", "nortpproxy_str", "a=sdpmangled:yes\r\n")
+#modparam("rtpproxy", "db_url", "mysql://{{db.user}}:{{db.password|urlencode}}@{{ips.mysql}}:{{db.port}}/{{os.database}}") # TODO take from database
+
+### Event route ####
+loadmodule "event_route.so"
+
+
+#### Startup route
+# Set defaults
+startup_route {
+    $log_level = -1; # DOC @ Script-CoreParameters-2-4#log_level
+    # DR_*: Dynamic routing module constants
+    $var(DR_CLINT_GWs) = 11;
+    $var(DR_PASS_THROUGH_GWs) = 3; #This should not ever used
+    $var(DR_DID_RT_RULES) = 0;
+    # PERM_*: Permissions module constants 
+    $var(PERM_CLINT_ADDRs) = 11;
+    $var(PERM_ALLOWED_IPS) = 0;
+    #else
+    $var(VPN_1) = 1;
+    $var(OUR_PRIVATE_SUBNET) = {{ ips.subnet_prefix_reg }};
+}
+
+#### Time Route TODO
+# update Cach 
+
+##### Routing Logic <==> Script entry point <==> main()
+route {
+    script_trace( 1, "$rm from $si, ruri=$ru", "request"); ## Try to run without it just normal logging
+    xlog("L_INFO", "Main route started for new request ... \n");
+    ##### Sip PING reply ############################
+    #TODO enable this please
+    #if (is_myself("$rd") && method == OPTIONS)
+        #options_reply();
+
+    #### Sanity checks for SIP msg
+    # #permission table group=0
+    if (!check_source_address("{{ os.perm_allowed_trunks}}") || !check_source_address("{{ os.perm_allowed_clients }}"))
+    {
+        sl_send_reply("403", "Relay not permitted.");
+        exit;
+    }
+
+    if (!mf_process_maxfwd_header("10")) {
+        sl_send_reply("483","Too Many Hops");
+        exit;
+    }
+    # We just work as a SIP Proxy no registeration 
+    if (is_method("PUBLISH|SUBSCRIBE|REGISTER")) 
+    {
+        sl_send_reply("503", "Service Unavailable");
+        exit;
+    }
+
+    if ($rU == NULL)
+    {
+        # request with no Username in RURI
+        sl_send_reply("484","Address Incomplete");
+        exit;
+    }
+
+    ##### Send sip message to our sms services ################
+    if(is_method("MESSAGE"))
+    {
+        route(SEND_SMS);
+        sl_send_reply("200", "Ok");
+        exit;
+    }
+
+    ####### Sequential request handling ###########################
+    if( has_totag() )
+    {
+        route(SEQUENTIAL_REQUEST) ;
+    }
+
+    ####### initial request handling ########
+    if(!has_totag() && !is_method("INVITE")){
+        # reject init requests not invite nor register
+        exit;
+    }
+    ### preloaded route checking Just accept initial invite match for ack
+    if (loose_route()) {
+        xlog("L_ERR", "Attempt to route with preloaded Route's [$fu/$tu/$ru/$ci] \n");
+        sl_send_reply("403","Preload Route denied");
+        exit;
+    }
+
+    ### Initial Request ######
+    if(is_method("INVITE") && !has_totag()){ # Initial invite
+        record_route();
+        create_dialog();
+        ##Detect Flash Call##########################
+        if (is_present_hf("FlashCall"))
+        {
+            xlog("L_WARN","FlashCall detected \n");
+            setflag(FLASHCALL);
+        }
+        ####### Handle inbound traffic ###########################
+        # first check if it comes from our DID providers ( use IP auth with DRouting
+        ## any thing not from rc, k4b or customer ( dr_gateway type 11)
+        #if ( !is_from_gw("{{ os.dr_client_gws }}", "ni",) && is_from_gw(, "ni", "$avp(src_gw_attrs)") ) {
+        if ( is_from_gw("{{ os.dr_trunks_gws }}", "ni", "$avp(src_gw_attrs)") ) {
+            route(INBOUND_CALL_RT);
+       }else{
+            route(OUTBOUND_CALL_RT); # End of outboud call handling
+       }
+   }
+} # End of main() route
+
+route [SEQUENTIAL_REQUEST] ## Re-Invite,ACK,CANCEL,BYE
+{
+    # Handle re-trans invites #tm.html#func_t_check_trans
+    if(t_check_trans() && is_method("INVITE")){ 
+        route(HANDLE_RETRANS);
+    }else if(is_method("INVITE")){
+        xlog("L_WARN", "INVITE with totag and outside any transaction , we may forget to t_relay()!!");
+        sl_reply_error();
+        exit;
+    }
+    if(is_method("ACK")){
+        xlog("L_INFO", "--> ACK\n");
+        loose_route();
+        if (!t_relay()){
+            sl_reply_error();
+            exit;
+        }
+    }
+    if(is_method("CANCEL")){
+        xlog("L_INFO", "--> CANCEL\n");
+        ## Stop accounting
+        ## update rabbitmq *rcw*
+        ## End the dialog
+        rtpproxy_unforce("$dlg_val(mediaSet)", "$var(rtpSock)");
+        loose_route();
+        t_relay();
+        exit;
+    }
+    if(is_method("BYE")){
+        xlog("L_INFO", "--> BYE\n");
+        ## Stop accounting
+        ## update rabbitmq *rcw*
+        #if check_source_address RC
+            #we end
+            #else end
+        rtpproxy_unforce("$dlg_val(mediaSet)", "$var(rtpSock)");
+        ## End the dialog
+        loose_route();
+        t_relay();
+        exit;
+    }
+}
+
+route [OUTBOUND_CALL_RT] 
+{ # Start of outboud call handling
+    xlog("L_INFO", "Not Incoming DID call \n");
+    if ( get_source_group("$var(group)") )
+    {
+        # do something with $var(group)
+        # perm_allowed_trunks = {{ os.perm_allowed_trunks }}
+        # perm_allowed_clients = {{ os.perm_allowed_clients }}
+        xlog("L_INFO", "group is $var(group)\n");
+    }
+    # TODO.now REVIEW again  Documentation/Tutorials-Radius as seem radreply not working anymore!!
+    if ( !is_from_gw("{{ os.dr_passthrough_gws }}", "ni","$var(from_gw_attrs)") ){
+        if (!aaa_proxy_authorize(""))
+        {   # Realm and URI user will be autogenerated
+            proxy_challenge("", "0");
+            exit;
+        }
+        consume_credentials();
+    }
+    if ( is_from_gw(, "ni","$var(src_gw_attrs)") ){
+        xlog("L_INFO", "src gw attrs = $var(src_gw_attrs)");
+    }
+    xlog("L_DBG", "****** Radius attribute dr_rule_group_id ( $avp(dr_rule_group_id) ) \n ") ;
+    $avp(radiusRuleId) = $(avp(dr_rule_group_id){s.int}) ;
+    xlog("L_NOTICE", "Dialplan to removing 00,+ from prefix\n");
+    if ( !dp_translate("1", "$rU/$rU") )
+    {
+        send_reply("404"," Bad PSTN number");
+        exit;
+    }
+    xlog("L_NOTICE", "Dialplan for one-to-one number mapping\n");
+    if ( dp_translate("2", "$rU/$rU") )
+    {
+        xlog("number translated.\n");
+    }
+    if (!route_to_gw("$hdr(RouteTO))", "$var(gw_attrs)")  ) #for static routing
+        if (!do_routing( "$avp(radiusRuleId)", , , , "$var(gw_attrs)",)) # This Should be depreciated use src_gw_rt_rule_id instead
+            if (!do_routing( "$avp(src_gw_rt_rule_id)", , , , "$var(gw_attrs)",)) # TODO.now bad variable name
+                if (!do_routing("1", , , , "$var(gw_attrs)",)) ## If it is not a local DID
+                    if (!do_routing("0", , , , "$var(gw_attrs)",))
+                    {
+                        send_reply("503", "No route found.") ;
+                        exit ;
+                    }
+    xlog("L_DBG", "-- Relaying to first gateway from our list - $var(gw_attrs)\n");
+    route(SET_GW_DEFAULTS);
+    route(MEDIA_ENGAGEMENT);
+    if(dp_translate("$(var(gw_attrs){param.value,caller_dial_plan_id}{s.int})", "$fU/$avp(NewFromUser)"))
+    {
+        xlog("translated FROM-User to var $avp(NewFromUser) \n");
+        uac_replace_from("$avp(NewFromUser)","sip:$avp(NewFromUser)@$var(from_domain)");
+    }
+    # Normalize called based on gw called_dial_plan_id
+    if ( dp_translate("$(var(gw_attrs){param.value,called_dial_plan_id}{s.int})", "$rU/$rU") )
+    {
+        xlog("called normalized to $rU .\n");
+    }
+    set_dlg_profile("trunk", "$rd");
+    get_profile_size("trunk", "$rd", "$var(calls)");
+    $dlg_val(trunk) = $avp(bname);
+    $dlg_val(user) = $au;
+    $dlg_val(mediaSet) = $avp(mediaSet) ;
+    if($hdr(X-RestComm-CallSid)){
+        $dlg_val(rc_callid)=$(hdr(X-RestComm-CallSid){s.select,1,-});
+        $dlg_val(user) = $hdr(X-RestComm-AccountSid) ;
+    }
+    xlog("L_INFO", "--- *** --- Current Trunk $rd active calls $var(calls) from total $avp(throughput) \n");
+    xlog("--- curl {{rcw.trunk_event.throughput}}/$avp(bname)?current=$var(calls)&total=$avp(throughput)");
+    if($(var(calls){s.int}) > $(avp(throughput){s.int})){
+        xlog("--- *** --- Throughput violation error !!! \n\n");
+        t_reply("486", " No Circuit Available Err 34");
+    }
+    #Set dialog timeout ### and should be tunable
+    #$DLG_timeout=60;
+    #update db table
+    if (isflagset(FLASHCALL))
+    {
+        xlog("L_INFO", "Flash call \n");
+        t_on_reply("handle_flash_call");
+        t_on_failure("1");
+    }else{
+        t_on_reply("1");
+        t_on_failure("1");
+    }
+}
+
+
+route [INBOUND_CALL_RT] {  
+    xlog("L_INFO", "-- Incoming DID from gateway ID = $avp(gw_id) \n");
+    # Normalize to remove prix ( 00, + )
+    if ( !dp_translate("1", "$rU/$rU") )
+    {
+        sl_send_reply("404", "Bad PSTN number .") ;
+        exit ;
+    }
+    ## Handle SDP Re-write for Esnad
+    if ( !do_routing("$var(DR_DID_RT_RULES)", , , "$avp(rule_attrs)" , "$avp(gw_attrs)",)){
+        sl_send_reply("404", "DID not found. ") ;
+        xlog("--- DID not found in generic DID table (dr_grp_id=1) for \$rU $rU\n");
+        exit;
+    }
+    route(SET_GW_DEFAULTS);
+    route(MEDIA_ENGAGEMENT);
+    if (!t_relay()){
+        sl_reply_error();
+        exit;
+    }
+}
+
+
+#xlog("--- Exec curl {{rcw.trunk_event.app_end_call}}?rcid=$dlg_val(rc_callid)&ds=$Ts&trunk=$dlg_val(trunk)");
+
+route [MEDIA_ENGAGEMENT] 
+{
+    # @Pre Exec SET_GW_DEFAULTS
+    # @inparams
+    #   src_gw_ip_type
+    #   dst_gw_ip_type
+    #   dst_adv_addr
+    #   dst_media_group
+    # @output
+    #   set advertise adddress
+    #   set rtpproxy engagement
+## DEPRECIATED LOGIC SHOULD BE REMOVED SOON
+    # $avp(ENGAGEMENT_TYPE) =
+    # 0 -> [p]rivate Network
+    # 1 -> [P]ublic Network
+    # 0xSD
+    #   | |_ D: Destination
+    #   |___ S: Source
+    # switch($avp(ENGAGEMENT_TYPE))
+    # 0x00 (0) -> Both private IPs (do not envolve rtpproxy)
+    # 0x01 (1) -> src private ,dst public
+    # 0x10 (2) -> src public  ,dst private
+    # 0x11 (3) -> Both public (do not envolve rtpproxy)
+## END OF DEPRECIATED LOGIC SHOULD BE REMOVED SOON
+
+    # Doc:
+    #   Logic based on bitwise opes
+    #   Src contains 3 bits and Dst also 3 bits
+    #   For both first bit P, Second p, and third V
+    # where,
+    # P: Public IP
+    # p: Private IP
+    # V: VPN IP
+    #
+    # for RTPProxy whe have 3 Bridge sets
+    # each set have (external IP) / (internal IP)
+    # external IP has (e) flag
+    # internal IP has (i) flag
+    # so
+    #   ei: means bridge external ip with internal offer with external ip and answer with internal
+    #   ie: reverse above
+    #   ii: both internal ip
+    #   ee: both external ip
+    #   set$X -> m=$X:
+    #       Public/Private i.e. x.x.x.x/y.y.y.y 
+    #       AS ---------------> i/e
+    #   set1 -> m=0:
+    #       Public/Private i.e. 54.209.230.76/192.168.75.128 
+    #   set2 -> m=1:
+    #       VPN/Private i.e.   196.2.196.20/192.168.75.128
+    #   set1 -> m=2:
+    #       VPN/Public i.e. 196.2.196.20/54.209.230.76
+    #
+    #
+    # src | dst |
+    # 000 | 000 |
+    # |||   |||
+    # PpV | PpV |
+    #
+    # Example:
+    #   source via VPN nated ip -> 001 
+    #   destin via VPN nated ip -> 001
+    # then ENGAGEMENT_TYPE = src << 3 | dst = 9
+    # 
+    # the list of available ENGAGEMENT_TYPE 
+    # src dst 
+    # PpV PpV 
+    # 001 001 ENGAGEMENT_TYPE=9  (m=2 ,rtp=ee)
+    # 001 010 ENGAGEMENT_TYPE=10 (m=1 ,rtp=ei)
+    # 001 100 ENGAGEMENT_TYPE=12 (m=2 ,rtp=ei)
+    #
+    # 010 001 ENGAGEMENT_TYPE=17 (m=1, rtp=ie)
+    # 010 010 ENGAGEMENT_TYPE=18 (m=0, rtp=ii <=> prefer no rtp engage)
+    # 010 100 ENGAGEMENT_TYPE=20 (m=0, rtp=ie)
+    #
+    # 100 001 ENGAGEMENT_TYPE=33 (m=2, rtp=ie)
+    # 100 010 ENGAGEMENT_TYPE=34 (m=0, rtp=ei)
+    # 100 100 ENGAGEMENT_TYPE=36 (m=0, rtp=ee || m=2, rtp=ii)
+    $avp(ENGAGEMENT_TYPE) = 0;
+    # SET SRC Flags
+    if($avp(src_gw_ip_type) == "P")
+        $avp(ENGAGEMENT_TYPE) = 0x04 << 3;
+    else if($avp(src_gw_ip_type) == "p")
+        $avp(ENGAGEMENT_TYPE) = 0x02 << 3;
+    else if($avp(src_gw_ip_type) == "V")
+        $avp(ENGAGEMENT_TYPE) = 0x01 << 3;
+    # SET DST Flags
+    if($avp(dst_gw_ip_type) == "P")
+        $avp(ENGAGEMENT_TYPE) = $avp(ENGAGEMENT_TYPE) | 0x04;
+    if($avp(dst_gw_ip_type) == "p")
+        $avp(ENGAGEMENT_TYPE) = $avp(ENGAGEMENT_TYPE) | 0x02;
+    if($avp(dst_gw_ip_type) == "V")
+        $avp(ENGAGEMENT_TYPE) = $avp(ENGAGEMENT_TYPE) | 0x01;
+
+    xlog("L_WARN", "ENGAGEMENT_TYPE -> $avp(ENGAGEMENT_TYPE)");
+
+    switch($avp(ENGAGEMENT_TYPE))
+    {
+        case 9:
+            set_advertised_address("{{ips.our_vpn_nat_ip}}"); 
+            rtpproxy_engage("eeoc", , "2", "$var(proxy)") ; 
+            xlog("L_INFO", "ENGAGEMENT_TYPE = 9 -> Both VPN IPs \n");
+            break;
+        case 10:
+            set_advertised_address("{{ ips.opensips_private }}"); 
+            rtpproxy_engage("eioc", , "1", "$var(proxy)") ; 
+            xlog("L_INFO", "ENGAGEMENT_TYPE = 10 -> src VPN ,dst private \n");
+            break;
+        case 12:
+            set_advertised_address("{{ ips.opensips_public }}"); 
+            rtpproxy_engage("eioc", , "2", "$var(proxy)") ; 
+            xlog("L_INFO", "ENGAGEMENT_TYPE = 12 -> src VPN ,dst Public \n");
+            break;
+        case 17:
+            set_advertised_address("{{ips.our_vpn_nat_ip}}"); 
+            rtpproxy_engage("ieoc", , "1", "$var(proxy)") ; 
+            xlog("L_INFO", "ENGAGEMENT_TYPE = 17 -> src private, dst VPN \n");
+            break;
+        case 18:
+            set_advertised_address("{{ ips.opensips_private }}"); 
+            xlog("L_INFO", "ENGAGEMENT_YPE = 18 -> src, dst private \n");
+            # No rtpproxy engagement as both private
+            break;
+        case 20:
+            set_advertised_address("{{ ips.opensips_public }}"); 
+            rtpproxy_engage("ieoc", , "0", "$var(proxy)") ; 
+            xlog("L_INFO", "ENGAGEMENT_TYPE = 20 -> src private, dst Public \n");
+            break;
+        case 33:
+            set_advertised_address("{{ips.our_vpn_nat_ip}}"); 
+            rtpproxy_engage("ieoc", , "2", "$var(proxy)") ; 
+            xlog("L_INFO", "ENGAGEMENT_TYPE = 33 src Public, dst VPN \n");
+            break;
+        case 34:
+            set_advertised_address("{{ ips.opensips_private }}"); 
+            rtpproxy_engage("eioc", , "0", "$var(proxy)") ; 
+            xlog("L_INFO", "ENGAGEMENT_TYPE = 34 -> src Public, dst private \n");
+            break;
+        case 36: #TODO
+            set_advertised_address("{{ ips.opensips_public }}"); 
+            rtpproxy_engage("eeoc", , "0", "$var(proxy)") ; 
+            xlog("L_INFO", "ENGAGEMENT_TYPE = 36 -> src Public, dst Public \n");
+            # Topology hidding 
+            break;
+    }
+}
+
+route [SET_GW_DEFAULTS]
+{
+    # @input param1 $avp(gw_attrs)
+    # @input param2 $avp(src_gw_attrs)
+    # @output all defaults
+    #   mandatory avps:
+    #       1 - dst_adv_addr
+    #       2 - src_gw_ip_type
+    #       3 - dst_gw_ip_type
+    #       4 - dst_rtpproxy_set_id
+    if ($(var(gw_attrs){param.value,adv_addr})) {
+        $avp(dst_adv_addr) = $(var(gw_attrs){param.value,adv_addr}) ;
+    }else {
+        $avp(dst_adv_addr) = "{{ ips.opensips_private }}" ;
+        
+    }
+    xlog("L_DBG", " *** Setting advertised_address -> $avp(advertised_address) ***");
+    #m
+    if ($(var(gw_attrs){param.value,m})) {
+        $avp(dst_rtpproxy_set_id) = $(var(gw_attrs){param.value,m});
+    }else{
+        $avp(dst_rtpproxy_set_id) = 0;
+    }
+    xlog("L_DBG", "*** Setting Media Termination Set to -> $avp(mediaSet) ***");
+    #c
+    if ($(var(gw_attrs){param.value,c})) {
+        $avp(throughput) = $(var(gw_attrs){param.value,c});
+    }else{
+        $avp(throughput) = 10;
+    }
+    xlog("L_DBG", "*** Setting Allowed Concurrent Call Limit to -> $avp(throughput) ***");
+    #d
+    if ($(var(gw_attrs){param.value,d})) {
+        $avp(domain) = $(var(gw_attrs){param.value,d});
+        xlog("L_DBG", "*** Dst Trunk Domain -> $avp(domain) ***");
+    }
+    #u
+    if ($(var(gw_attrs){param.value,u})) {
+        $avp(username) = $(var(gw_attrs){param.value,u}) ;
+        xlog("L_DBG", "Setting Dst Trunk UserName -> $avp(username) ***");
+    }
+    #p
+    if ($(var(gw_attrs){param.value,p})) {
+        $avp(password) = $(var(gw_attrs){param.value,p});
+        xlog("L_DBG", "*** Setting Dst Trunk Password -> $avp(password) ***");
+    }
+    #ip_type
+    if ($(var(gw_attrs){param.value,ip_type})) {
+        $avp(dst_gw_ip_type) = $(var(gw_attrs){param.value,ip_type}) ;
+    }else{
+        # default if gw real
+        # is_from_gw(client)
+        # $avp(dst_gw_ip_type) = "P"; 
+        # else
+    }
+    xlog("L_DBG", "*** Setting Billing Name for Dst Trunk -> $avp(bname) ***");
+    #b
+    if ($(var(gw_attrs){param.value,b})) {
+        $avp(bname) = $(var(gw_attrs){param.value,b}) ;
+    }else{
+        $avp(bname) = $rd;
+    }
+    xlog("L_DBG", "*** Setting Billing Name for Dst Trunk -> $avp(bname) ***");
+    #src_b
+    if ($(var(src_gw_attrs){param.value,b})) {
+        $avp(src_bname) = $(var(src_gw_attrs){param.value,b}) ;
+    }else{
+    }
+    #src_ip_type
+    xlog("L_DBG", "*** Setting Billing Name for Src Trunk -> $avp(src_bname) ***");
+    if ($(var(src_gw_attrs){param.value,ip_type})) {
+        $avp(src_gw_ip_type) = $(var(src_gw_attrs){param.value,ip_type}) ;
+    }else{
+        if ( $si =~ "$var(OUR_PRIVATE_SUBNET)" ) {
+            $avp(src_gw_ip_type) = "p";
+        }else{
+            $avp(src_gw_ip_type) = "P";
+        }if ( !$avp(dst_gw_ip_type) ){
+           if ($avp(src_gw_ip_type) == "p")
+               $avp(dst_gw_ip_type) = "P"; 
+           else
+               $avp(dst_gw_ip_type) = "p"; 
+           }
+    }
+    xlog("L_DBG", "*** Setting Billing Name for Src Trunk -> $avp(src_gw_ip_type) ***");
+    xlog("L_DBG", "*** Setting Billing Name for Src Trunk -> $avp(dst_gw_ip_type) ***");
+}
+
+route [SEND_SMS] 
+{
+        xlog("DEBUG ** ** Received send new SMS request\n");
+        xlog("DEBUG ** ** SID = $hdr(X-RestComm-AccountSid)\n");
+        xlog("DEBUG ** ** Message = $(rb{s.escape.param})\n");
+        xlog("DEBUG ** ** From = $fU\n");
+        xlog("DEBUG ** ** To = $(tU{s.substr,1,0}) \n");
+        if($hdr(X-RestComm-AccountSid))
+        {
+                        #async(rest_get("{{os.sms_service}}", "$var(respBody)", , "$var(rcode)"), onCurlReply) ; # TODO put in a queue and other service handles sending
+        }
+}
+
+### Handle re-transmission route
+route [HANDLE_RETRANS] {
+    $log_level = 4;
+    script_trace( 1, "$rm from $si, ruri=$ru", "retrans"); ## Try to run without it just normal logging
+    if(is_method("INVITE")) {
+        xlog("L_INFO", "New Re-INVITE \n");
+        record_route();
+        #TODO close old dialog
+        #TODO create new dialog
+        if(!t_relay()){
+            sl_reply_error();
+            exit;
+         }
+    }
+    $log_level = NULL;
+}
+
+onreply_route [1] {
+    if (t_was_cancelled() ){
+        xlog("L_INFO", "Call CANCELed");
+        t_cancel_branch("a");
+        exit;
+    }
+    # $T_fr_inv_timeout
+    if( t_check_status("180")){
+        #rcw call ringing
+    }
+    if( t_check_status("200")){
+        #rcw call open
+    }
+}
+
+failure_route [1] {
+    if( t_check_status("407") ) { 
+        uac_auth();
+    }else{
+        # update rcw
+    }
+}
+
+
+onreply_route [handle_flash_call] { #TODO :Handle Accounting
+    #script_trace( 1, "$rm from $si, ruri=$ru", "reply");
+    
+    if (t_check_status("183")) {
+            #session progress then set timeout to three seconds
+            $T_fr_inv_timeout=3;
+    }
+    
+    if (t_check_status("200")) {
+            # Ringing then cancel call
+            t_cancel_branch("a");
+    }
+}
+
+
+event_route[E_DLG_STATE_CHANGED] {
+   fetch_event_params("$avp(nstate);$avp(ostate)");
+   xlog("L_INFO", " --- *** newstate $avp(d) oldstate $avp(c) of dialog \n");
+    xlog("--- !!! DLG_status is ($DLG_status) \n");
+        switch($DLG_status)
+        {
+                case 1:
+                        xlog("--- Dialog.Status -> Unconfirmed *INVITE sent no reply received*\n");
+                        break;
+                case 2:
+                        xlog("--- Dialog.Status -> Early.State *INVITE sent provisional reply received*\n");
+                        break;
+                case 3:
+                        xlog("--- Dialog.Status -> Confirmed *INVITE sent 200 OK received no ACK yet*\n");
+                        break;
+                case 4:
+                        xlog("--- Dialog.Status -> Established *INVITE sent 200 OK received ,ACK confirmed*\n");
+                        break;
+                case 5:
+                        xlog("--- Dialog.Status -> Dialog Ended\n");
+                        break;
+                default:
+                        xlog("--- Dialog.Status -> Not Found\n");
+        }
+}
+

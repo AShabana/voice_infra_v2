@@ -1,0 +1,10 @@
+All CPaaS components Composed Enviroment 
+just run below command 
+$ chmod +x clone.all.sh && ./clone.all.sh
+$ cd cpaas.deployment.environment/$env
+edit your env. varialbles specially network.yml
+then build env with this command 
+$ ansible-playbook cpaas.yml
+$ docker-compose up -d
+$ docker-compose ps
+$ docker-compose logs -f --tail=10

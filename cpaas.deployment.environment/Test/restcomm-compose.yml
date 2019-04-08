@@ -1,0 +1,13 @@
+version: '2.1'
+
+services:
+    restcomm:
+        build: 
+            context: ./../../RestComm-Docker
+            dockerfile: Dockerfile
+        image: "cequens/restcomm-connect"
+        env_file:
+            -  "../../RestComm-Docker/restcomm_local"
+        volumes:
+            - "../../RestComm-Docker/Restcomm-JBoss-AS7-7.6.0:/opt/Restcomm-JBoss-AS7"
+        network_mode: "host"

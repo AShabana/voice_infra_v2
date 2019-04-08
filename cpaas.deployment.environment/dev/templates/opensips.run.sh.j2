@@ -1,0 +1,32 @@
+#!/bin/bash
+
+cd /etc/opensips
+
+## Create tables from backup 
+mysql -u{{ db.user }}  -p{{ db.password }} -h{{ ips.mysql }} -e "CREATE DATABASE IF NOT EXISTS {{ os.database }} ;"
+mysql -u{{ db.user }}  -p{{ db.password }}  {{ os.database }} -h{{ ips.mysql }} < opensips24-schema.sql
+
+## Create empty cdr tables
+mysql -u{{ db.user }}  -p{{ db.password }}  {{ os.database }} -h{{ ips.mysql }} < cdr_table_schema.sql 
+
+## FreeRadius Data 
+mysql -u{{ db.user }} -p{{ db.password }} -h{{ ips.mysql }} -e "source freeradius_schema.sql" {{ rad.database }}
+mysql -u{{ db.user }}  -p{{ db.password }}  {{ rad.database }} -h{{ ips.mysql }} < freeradius_1.0_16_aug_2017.sql 
+
+{% for client in sip.clients %}
+{% if client.ip is defined %}
+mysql  -u{{ db.user }}  -p{{ db.password }} -h{{ ips.mysql }} -e "UPDATE radcheck SET username='{{ sip.clients[client].name }}@{{ client.ip }}', value='{{ sip.clients[client].pass }}';" {{ rad.database }}
+{% else %}
+mysql  -u{{ db.user }}  -p{{ db.password }} -h{{ ips.mysql }} -e "INSERT INTO  radcheck values ('{{loop.index}}', '{{ sip.clients[client].name }}@{{ ips.opensips_public }}', 'Cleartext-Password', ':=' ,'{{ sip.clients[client].pass }}');" {{ rad.database }}
+{% endif %}
+{% endfor %}
+
+mysql -u{{ db.user }}  -p{{ db.password }} -h{{ ips.mysql }} -e "Truncate table radacct;"  {{ rad.database }}
+mysql -u{{ db.user }}  -p{{ db.password }} -h{{ ips.mysql }} -e "UPDATE dr_gateways SET address='{{ ips.asterisk }}', socket='';" {{ os.database }}
+
+## TODO make ip from var
+mysql -u{{ db.user }}  -p{{ db.password }} -h{{ ips.mysql }} -e "INSERT INTO address (ip, mask) VALUES ('192.168.0.0', '16')" {{ os.database }}
+
+
+/usr/local/src/opensips -f /etc/opensips/opensips.cfg
+#/usr/local/src/opensips -D  -f /etc/opensips/opensips.cfg

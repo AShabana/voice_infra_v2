@@ -1,0 +1,14 @@
+---
+bridge: br0
+subnet: 192.168.13.0/24
+opensips: 192.168.13.1
+opensips_adv: 192.168.1.100
+opensips_public: 192.168.1.100
+host: 192.168.1.100
+host_bridge: 192.168.13.1
+radius: 192.168.13.11
+asterisk: 192.168.13.12
+restcomm: 192.168.13.13
+ocp: 192.168.13.14
+mysql: 192.168.13.100
+

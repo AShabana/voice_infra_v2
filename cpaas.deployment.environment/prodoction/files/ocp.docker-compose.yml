@@ -1,0 +1,10 @@
+version: '2.1'
+
+services:
+    ocp:
+       image: "nimmis/apache-php5"
+       volumes: 
+            - "../source:/var/www"
+            - "./:/docker"
+       entrypoint: sh /docker/run.sh
+       network_mode: host

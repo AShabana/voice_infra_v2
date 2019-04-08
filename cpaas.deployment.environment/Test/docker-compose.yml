@@ -1,0 +1,119 @@
+version: '2.1'
+
+services:
+    mysql:
+       image: "mysql:latest"
+       env_file:
+            - "./testing_env"
+       networks:
+             br0:
+                ipv4_address: "192.168.13.100"
+       healthcheck:
+            test: ["CMD", "ls", "/run/mysqld/mysqld.pid"]
+            interval: 15s
+            timeout: 10s
+            retries: 5
+
+    createRadiusDB:
+       image: "tpdock/freeradius"
+       env_file:
+             - "./testing_env"
+       depends_on:
+             mysql:
+                condition: service_healthy
+       command:  mysql -uroot -ppssword -h192.168.13.100 -e "source /etc/freeradius/sql/mysql/schema.sql" freeradius
+       networks:
+             br0:
+
+
+#    restcomm:
+#        build: 
+#            context: ./../../RestComm-Docker
+#            dockerfile: Dockerfile
+#        image: "cequens/restcomm-connect"
+#        depends_on:
+#            mysql:
+#                condition: service_healthy
+#        env_file:
+#            -  "../../RestComm-Docker/restcomm_local"
+#        volumes:
+#            - "../../RestComm-Docker/Restcomm-JBoss-AS7-7.6.0:/opt/Restcomm-JBoss-AS7"
+#        networks: 
+#            br0:
+#                ipv4_address: "192.168.13.13"
+#
+
+    opensips:
+        build:
+            context: ../../cpaas.opensips
+            dockerfile: Dockerfile
+        image: "cequens/opensips"
+        env_file:
+            - "./testing_env"
+        volumes: 
+            - "../../cpaas.opensips/etc/opensips:/etc/opensips"
+            - "../../cpaas.opensips/etc/radiusclient-ng:/etc/radiusclient-ng"
+        depends_on:
+             mysql:
+                condition: service_healthy
+        command: "/etc/opensips/run.sh"
+        network_mode: host
+
+    radius:
+       image: "tpdock/freeradius"
+       env_file:
+            - "./testing_env"
+       depends_on:
+            - "createRadiusDB"
+       volumes: 
+            - "../../cpaas.radius/dictionary:/usr/share/freeradius"
+            - "../../cpaas.radius/etc/freeradius:/etc/freeradius"
+       networks:
+             br0: 
+                ipv4_address: "192.168.13.11"
+
+
+    asterisk:
+       build:
+         context: ../../cpaas.asterisk
+         dockerfile: Dockerfile
+       image: "cequens/asterisk"
+       env_file:
+            - "./testing_env"
+       volumes: 
+            - "../../cpaas.asterisk/etc:/etc/asterisk"
+       command: sh /etc/asterisk/run.sh
+       networks:
+             br0:
+                ipv4_address: "192.168.13.12"
+
+
+    ocp:
+       image: "nimmis/apache-php5"
+       volumes: 
+            - "../../cpaas.ocp/source:/var/www"
+            - "../../cpaas.ocp/docker:/docker"
+       entrypoint: sh /docker/run.sh
+       depends_on:
+            - "opensips"
+       network_mode: host
+
+    rtpproxy:
+       build:
+         context: ../../cpaas.rtpproxy
+         dockerfile: Dockerfile
+       image: "cequens/rtpproxy"
+       volumes: 
+            - "../../cpaas.rtpproxy/source:/src"
+            - "../../cpaas.rtpproxy/docker:/docker"
+       entrypoint: sh /docker/run.sh
+       network_mode: host
+
+networks:
+    br0:
+        driver: bridge
+        ipam:
+            driver: default
+            config:
+                - subnet: "192.168.13.0/24"
+

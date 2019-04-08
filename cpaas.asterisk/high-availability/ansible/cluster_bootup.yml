@@ -1,0 +1,24 @@
+---
+# Let a cluster of CoreOS boxen rediscover themselves when being spun up.
+- name: Rediscover a cluster of CoreOS boxen.
+  hosts: libvirthost
+  vars_files:
+    - ["vars/private.yml", "vars/coreos.yml"]
+  vars:
+    # These vars are required.
+    # public_ssh_keys: 
+    #     - "ssh-dss AAAA...."
+    #     - "ssh-dss AAAAB3...."
+    # libvirt_subnet: "192.168.122"
+  sudo: true
+  pre_tasks:
+    # - Clear cache on a box?
+    # systemctl stop etcd2 && rm -f /var/lib/etcd2/proxy/cluster && reboot
+  roles:
+    - { role: get-etcd-token }
+    - { role: libvirt-coreos, mode: rediscover, boxnumber: 5, box_role: "controller", etcd_leader: true }
+    - { role: libvirt-coreos, mode: rediscover, boxnumber: 0, box_role: "kamailio" }
+    - { role: libvirt-coreos, mode: rediscover, boxnumber: 1, box_role: "kamailio" }
+    - { role: libvirt-coreos, mode: rediscover, boxnumber: 2, box_role: "asterisk" }
+    - { role: libvirt-coreos, mode: rediscover, boxnumber: 3, box_role: "asterisk" }
+    - { role: libvirt-coreos, mode: rediscover, boxnumber: 4, box_role: "homer" }

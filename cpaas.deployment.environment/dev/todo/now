@@ -1,0 +1,3 @@
+- just function with new rcw.qc.endpoints
+- remove all RTPProxy replace it with asteriks deployed at current SBC server and connect to esnad + twilio + etc. 
+- add run.asterisk.sh to template files and remove asterisk from docker-compose.yml

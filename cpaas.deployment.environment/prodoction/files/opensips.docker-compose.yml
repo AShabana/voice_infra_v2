@@ -1,0 +1,27 @@
+version: '2.1'
+
+services:
+    opensips: # for all calls
+        build:
+            context: .
+            dockerfile: Dockerfile
+        image: "cequens/opensips"
+        volumes:
+            - "./etc/opensips:/etc/opensips"
+            - "./etc/radiusclient-ng:/etc/radiusclient-ng"
+        command: ["/usr/local/src/opensips", "-E", "-D",  "-f",  "/etc/opensips/opensips.cfg"]
+        network_mode: host
+
+
+    opensips_restcomm: # for restcomm calls with queues to match throughput
+        build:
+            context: .
+            dockerfile: Dockerfile
+        image: "cequens/opensips"
+        volumes:
+            - "./etc/opensips:/etc/opensips"
+            - "./etc/radiusclient-ng:/etc/radiusclient-ng"
+        command: ["/usr/local/src/opensips", "-d" ,"-E", "-D",  "-f",  "/etc/opensips/opensips.cfg.backup"]
+        network_mode: host
+
+

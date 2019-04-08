@@ -1,0 +1,17 @@
+- name: Sync asterisk configs
+  hosts: asterisk
+  vars_files:
+    - ["vars/private.yml", "vars/coreos.yml"]
+  # vars:
+  #   outbound_proxy: 192.168.122.200
+  sudo: true
+  tasks:
+
+
+- name: Sync kamailio configs
+  hosts: kamailio
+  vars_files:
+    - ["vars/private.yml", "vars/coreos.yml"]
+  sudo: true
+  tasks:
+

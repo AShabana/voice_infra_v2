@@ -1,0 +1,1 @@
+rtpproxy -A {{ ips.rtpproxy_public }}/{{ ips.rtpproxy }}  -l {{ ips.rtpproxy }} -s udp:{{ ips.rtpproxy }}:{{ rtp.port }} -F -f -d DBUG LOG_LOCAL2
